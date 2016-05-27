@@ -1,0 +1,66 @@
+################################################################################
+#
+#	libnx_video_api.so
+#
+include ../buildcfg.mk
+
+# Directory Path
+INC_PATH	:= ../../sysroot/include
+LIB_PATH	:= ../../sysroot/lib
+
+# Target Information
+LIBNAME	:= libnx_video_api
+TARGET	:= $(LIBNAME).so
+
+# Sources
+COBJS	:= \
+		nx_video_alloc/nx_video_alloc.o	\
+		nx_video_enc.o \
+		nx_video_dec.o
+CPPOBJS	:=  
+OBJS	:= $(COBJS) $(CPPOBJS)
+
+# Add Include Path
+INCLUDE	+= -I./ -I../include/ -I./nx_video_alloc -I$(INC_PATH)
+
+# Add Dependent Libraries
+LIBRARY += -L$(LIB_PATH)
+
+# Compile Options
+CFLAGS	+= -fPIC
+
+# Build
+all: $(TARGET)
+
+$(TARGET):	depend $(OBJS)
+	$(quiet)$(CC) $(LDFLAGS) -shared -Wl,-soname,$(TARGET) -o $@ $(OBJS) $(LIBRARY)
+
+install:
+	@echo "$(ColorMagenta)[[[ Intall $(LIBNAME) ]]]$(ColorEnd)"
+	install -m 755 -d $(LIB_PATH)
+	install -m 755 -d $(INC_PATH)
+	install -m 644 $(TARGET) $(LIB_PATH)
+	install -m 644 ./nx_video_alloc/nx_video_alloc.h $(INC_PATH)
+	install -m 644 nx_video_api.h $(INC_PATH)
+
+clean:
+	@echo "$(ColorMagenta)[[[ Clean $(LIBNAME) ]]]$(ColorEnd)"
+	rm -f $(COBJS) $(CPPOBJS) $(TARGET) $(LIBNAME).a .depend
+
+distclean:
+	@echo "$(ColorMagenta)[[[ Distclean $(LIBNAME) ]]]$(ColorEnd)"
+	rm -f $(COBJS) $(CPPOBJS) $(TARGET) .depend
+	rm -f $(LIB_PATH)/$(TARGET)
+	rm -f $(INC_PATH)/nx_video_alloc.h
+	rm -f $(INC_PATH)/nx_video_api.h
+
+# Dependency
+ifeq (.depend,$(wildcard .depend))
+include .depend
+endif
+
+SRCS := $(COBJS:.o=.c) $(CPPOBJS:.o=.cpp)
+INCS := $(INCLUDE)
+depend dep:
+	@echo "$(ColorMagenta)[[[ Build $(LIBNAME) ]]]$(ColorEnd)"
+	$(quiet)$(CC) -M $(CFLAGS) $(INCS) $(SRCS) > .depend
