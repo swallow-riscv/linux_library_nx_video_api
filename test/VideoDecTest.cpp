@@ -45,8 +45,7 @@
 #include "DrmRender.h"
 #endif
 
-
-#define IMG_FORMAT			V4L2_PIX_FMT_YUV420M  //V4L2_PIX_FMT_NV12M
+//#define ENABLE_CBCR_INTERLEAVE
 
 static bool bExitLoop = false;
 
@@ -195,6 +194,9 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 		}
 		seqIn.seqBuf = streamBuffer;
 
+		if (v4l2CodecType == V4L2_PIX_FMT_MJPEG)
+			seqIn.thumbnailMode = 0;
+
 		ret = NX_V4l2DecParseVideoCfg(hDec, &seqIn, &seqOut);
 		if (ret < 0)
 		{
@@ -205,7 +207,19 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 		seqIn.width = seqOut.width;
 		seqIn.height = seqOut.height;
 		seqIn.numBuffers = 2;
-		seqIn.imgFormat = IMG_FORMAT;
+		
+#ifdef ENABLE_CBCR_INTERLEAVE
+		if (seqOut.imgFourCC == V4L2_PIX_FMT_YUV420M)
+			seqIn.imgFormat = V4L2_PIX_FMT_NV12M;
+		else if (seqOut.imgFourCC == V4L2_PIX_FMT_YUV422M)
+			seqIn.imgFormat = V4L2_PIX_FMT_NV16M;
+		else if (seqOut.imgFourCC == V4L2_PIX_FMT_YUV444M)
+			seqIn.imgFormat = V4L2_PIX_FMT_NV24M;
+		else 
+			seqIn.imgFormat	= seqOut.imgFourCC;
+#else
+		seqIn.imgFormat	= seqOut.imgFourCC;
+#endif		
 
 		ret = NX_V4l2DecInit(hDec, &seqIn);
 		if (ret < 0)

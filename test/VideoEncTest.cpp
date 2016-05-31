@@ -90,6 +90,7 @@ static void register_signal( void )
 static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO *pImg)
 {
 	int32_t i, j;
+	int32_t cWidth = 0, cHeight = 0;
 	uint8_t *pDst, *pCb, *pCr, *pCbCr, *pCrCb;
 
 	// Copy Lu
@@ -101,34 +102,71 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 		pSrc += w;
 	}
 
-	pCb = pSrc;
-	pCr = pSrc + w*h/4;
-
-	switch (pImg->format) 
+	switch (pImg->format)
 	{
 	case V4L2_PIX_FMT_YUV420M:
+	case V4L2_PIX_FMT_NV12M:
+	case V4L2_PIX_FMT_NV21M:
 	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+		cWidth = w / 2;
+		cHeight = h / 2;
+		break;
+
+	case V4L2_PIX_FMT_YUV422M:
+	case V4L2_PIX_FMT_NV16M:
+	case V4L2_PIX_FMT_NV61M:
+	case DRM_FORMAT_YUV422:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
+		cWidth = w / 2;
+		cHeight = h;
+		break;
+
+	case V4L2_PIX_FMT_YUV444M:
+	case V4L2_PIX_FMT_NV24M:
+	case V4L2_PIX_FMT_NV42M:
+	case DRM_FORMAT_YUV444:
+		cWidth = w;
+		cHeight = h;
+	}
+
+	pCb = pSrc;
+	pCr = pSrc + (cWidth * cHeight);
+
+	switch (pImg->format)
+	{
+	case V4L2_PIX_FMT_YUV420M:
+	case V4L2_PIX_FMT_YUV422M:
+	case V4L2_PIX_FMT_YUV444M:
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_YUV422:
+	case DRM_FORMAT_YUV444:
 		for (i=1 ; i<3 ; i++)
 		{
 			pDst = (uint8_t *)pImg->pBuffer[i];
 
-			for (j=0 ; j<h/2 ; j++)
+			for (j=0 ; j<cHeight ; j++)
 			{
-				memcpy(pDst, pSrc, w/2);
+				memcpy(pDst, pSrc, cWidth);
 				pDst += pImg->stride[i];
-				pSrc += w/2;
+				pSrc += cWidth;
 			}
 		}
 		break;
 
 	case V4L2_PIX_FMT_NV12M:
-		pDst = (uint8_t *)pImg->pBuffer[1];
-		
-		for (i=0 ; i<h/2 ; i++)
+	case V4L2_PIX_FMT_NV16M:
+	case V4L2_PIX_FMT_NV24M:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV16:
+		pDst = (uint8_t *)pImg->pBuffer[1];		
+		for (i=0 ; i<cHeight ; i++)
 		{
 			pCbCr = pDst + pImg->stride[1] * i;
 
-			for (j=0 ; j<w/2 ; j++)
+			for (j=0 ; j<cWidth ; j++)
 			{
 				*pCbCr++ = *pCb++;
 				*pCbCr++ = *pCr++;
@@ -137,19 +175,78 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 		break;
 
 	case V4L2_PIX_FMT_NV21M:
+	case V4L2_PIX_FMT_NV61M:
+	case V4L2_PIX_FMT_NV42M:
+	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_NV61:
 		pDst = (uint8_t *)pImg->pBuffer[1];
-
-		for (i=0 ; i<h/2 ; i++)
+		for (i=0 ; i<cHeight ; i++)
 		{
 			pCrCb = pDst + pImg->stride[1] * i;
 			
-			for (j=0 ; j<w/2 ; j++)
+			for (j=0 ; j<cWidth ; j++)
 			{
 				*pCrCb++ = *pCr++;
 				*pCrCb++ = *pCb++;
 			}
 		}
+	}
+
+	return 0;
+}
+
+static int32_t GetImgInfo(uint32_t format, int32_t lSize, int *Size, int *planes)
+{
+	switch (format)
+	{
+	case V4L2_PIX_FMT_YUV420M:
+	case DRM_FORMAT_YUV420:
+		*Size = lSize * 3 / 2;
+		*planes = 3;
 		break;
+
+	case V4L2_PIX_FMT_YUV422M:
+	case DRM_FORMAT_YUV422:
+		*Size = lSize * 2;
+		*planes = 3;
+		break;
+
+	case V4L2_PIX_FMT_YUV444M:
+	case DRM_FORMAT_YUV444:
+		*Size = lSize * 3;
+		*planes = 3;
+		break;
+
+	case V4L2_PIX_FMT_NV12M:
+	case V4L2_PIX_FMT_NV21M:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+		*Size = lSize * 3 / 2;
+		*planes = 2;
+		break;
+
+	case V4L2_PIX_FMT_NV16M:
+	case V4L2_PIX_FMT_NV61M:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
+		*Size = lSize * 2;
+		*planes = 2;
+		break;
+
+	case V4L2_PIX_FMT_NV24M:
+	case V4L2_PIX_FMT_NV42M:
+		*Size = lSize * 3;
+		*planes = 2;
+		break;
+
+	case V4L2_PIX_FMT_GREY:
+		*Size = lSize;
+		*planes = 1;
+		break;
+
+	default :
+		printf("The color format is not supported!!!");
+		return -1;
 	}
 
 	return 0;
@@ -171,7 +268,8 @@ static int32_t VpuEncPerfMain(CODEC_APP_DATA *pAppData)
 	FILE *fpIn = fopen(pAppData->inFileName, "rb");
 	FILE *fpOut = fopen(pAppData->outFileName, "wb");
 
-	if (fpIn == NULL || fpOut == NULL) {
+	if (fpIn == NULL || fpOut == NULL)
+	{
 		printf("input file or output file open error!!\n");
 		goto ENC_TERMINATE;
 	}
@@ -280,6 +378,9 @@ static int32_t VpuEncPerfMain(CODEC_APP_DATA *pAppData)
 		encPara.imgFormat = IMG_FORMAT;
 		encPara.imgBufferNum = IMAGE_BUFFER_NUM;
 
+		if (pAppData->codec == V4L2_PIX_FMT_MJPEG)
+			encPara.jpgQuality = (pAppData->qp == 0) ? (90) : (pAppData->qp);
+
 		ret = NX_V4l2EncInit(hEnc, &encPara);
 		if (ret < 0) 
 		{
@@ -305,15 +406,16 @@ static int32_t VpuEncPerfMain(CODEC_APP_DATA *pAppData)
 	{
 		int32_t frmCnt = 0, readSize;
 		uint64_t startTime, endTime;
-		int32_t imgSize = inWidth * inHeight * 3 / 2;
+		int32_t imgSize;
+		int32_t planes;
 		uint8_t *pSrcBuf;
-		int32_t planes = (IMG_FORMAT == V4L2_PIX_FMT_YUV420M) ? (3) : (2);
-		uint32_t format = DRM_FORMAT_YUV420;		// TBD.
+
+		GetImgInfo(IMG_FORMAT, inWidth*inHeight, &imgSize, &planes);
 
 		// Allocate Output Buffer
 		for (i = 0; i < IMAGE_BUFFER_NUM; i++)
 		{
-			hImage[i] = NX_AllocateVideoMemory(inWidth, inHeight, planes, format, 4096);
+			hImage[i] = NX_AllocateVideoMemory(inWidth, inHeight, planes, IMG_FORMAT, 4096);
 
 			if (hImage[i] == NULL)
 			{

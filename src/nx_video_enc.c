@@ -240,10 +240,17 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 		switch (pEncPara->imgFormat)
 		{
 		case V4L2_PIX_FMT_YUV420M:
+		case V4L2_PIX_FMT_YUV422M:
+		case V4L2_PIX_FMT_YUV444M:
 			planesNum = 3;
 			break;
 		case V4L2_PIX_FMT_NV12M:
+		case V4L2_PIX_FMT_NV16M:
+		case V4L2_PIX_FMT_NV24M:
 			planesNum = 2;
+			break;
+		case V4L2_PIX_FMT_GREY:
+			planesNum = 1;
 			break;
 		default :
 			printf("The color format is not supported!!!");
@@ -262,102 +269,113 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 
 	/* Set Encoder Parameter */
 	{
-		struct v4l2_ext_control ext_ctrl[MAX_CTRL_NUM];
-		struct v4l2_ext_controls ext_ctrls;
+		if (hEnc->codecType != V4L2_PIX_FMT_MJPEG) {
+			struct v4l2_ext_control ext_ctrl[MAX_CTRL_NUM];
+			struct v4l2_ext_controls ext_ctrls;
 
-		ext_ctrl[0].id = V4L2_CID_MPEG_VIDEO_FPS_NUM;
-		ext_ctrl[0].value	 = pEncPara->fpsNum;
-		ext_ctrl[1].id = V4L2_CID_MPEG_VIDEO_FPS_DEN;
-		ext_ctrl[1].value = pEncPara->fpsDen;
-		ext_ctrl[2].id = V4L2_CID_MPEG_VIDEO_GOP_SIZE;
-		ext_ctrl[2].value = pEncPara->keyFrmInterval;
+			ext_ctrl[0].id = V4L2_CID_MPEG_VIDEO_FPS_NUM;
+			ext_ctrl[0].value = pEncPara->fpsNum;
+			ext_ctrl[1].id = V4L2_CID_MPEG_VIDEO_FPS_DEN;
+			ext_ctrl[1].value = pEncPara->fpsDen;
+			ext_ctrl[2].id = V4L2_CID_MPEG_VIDEO_GOP_SIZE;
+			ext_ctrl[2].value = pEncPara->keyFrmInterval;
 
-		ext_ctrl[3].id = V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB;
-		ext_ctrl[3].value = pEncPara->numIntraRefreshMbs;
-		ext_ctrl[4].id = V4L2_CID_MPEG_VIDEO_SEARCH_RANGE;
-		ext_ctrl[4].value = pEncPara->searchRange;
+			ext_ctrl[3].id = V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB;
+			ext_ctrl[3].value = pEncPara->numIntraRefreshMbs;
+			ext_ctrl[4].id = V4L2_CID_MPEG_VIDEO_SEARCH_RANGE;
+			ext_ctrl[4].value = pEncPara->searchRange;
 
-		ext_ctrl[5].id = V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE;
-		ext_ctrl[5].value = (pEncPara->bitrate) ? (1) : (0);
-		ext_ctrl[6].id = V4L2_CID_MPEG_VIDEO_BITRATE;
-		ext_ctrl[6].value = pEncPara->bitrate;
-		ext_ctrl[7].id = V4L2_CID_MPEG_VIDEO_VBV_SIZE;
-		ext_ctrl[7].value = pEncPara->rcVbvSize;
-		ext_ctrl[8].id = V4L2_CID_MPEG_VIDEO_RC_DELAY;
-		ext_ctrl[8].value = pEncPara->RCDelay;
-		ext_ctrl[9].id = V4L2_CID_MPEG_VIDEO_RC_GAMMA_FACTOR;
-		ext_ctrl[9].value = pEncPara->gammaFactor;
-		ext_ctrl[10].id = V4L2_CID_MPEG_VIDEO_FRAME_SKIP_MODE;
-		ext_ctrl[10].value = pEncPara->disableSkip;
+			ext_ctrl[5].id = V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE;
+			ext_ctrl[5].value = (pEncPara->bitrate) ? (1) : (0);
+			ext_ctrl[6].id = V4L2_CID_MPEG_VIDEO_BITRATE;
+			ext_ctrl[6].value = pEncPara->bitrate;
+			ext_ctrl[7].id = V4L2_CID_MPEG_VIDEO_VBV_SIZE;
+			ext_ctrl[7].value = pEncPara->rcVbvSize;
+			ext_ctrl[8].id = V4L2_CID_MPEG_VIDEO_RC_DELAY;
+			ext_ctrl[8].value = pEncPara->RCDelay;
+			ext_ctrl[9].id = V4L2_CID_MPEG_VIDEO_RC_GAMMA_FACTOR;
+			ext_ctrl[9].value = pEncPara->gammaFactor;
+			ext_ctrl[10].id = V4L2_CID_MPEG_VIDEO_FRAME_SKIP_MODE;
+			ext_ctrl[10].value = pEncPara->disableSkip;
 
-		if (hEnc->codecType == V4L2_PIX_FMT_H264)
-		{
-			ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_H264_AUD_INSERT;
-			ext_ctrl[11].value = pEncPara->enableAUDelimiter;
-			
-			ext_ctrls.count = 12;
-
-			if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0)) {
-				ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP;
-				ext_ctrl[12].value = pEncPara->initialQp;
-				ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP;
-				ext_ctrl[13].value = pEncPara->initialQp;
-				ext_ctrl[14].id = V4L2_CID_MPEG_VIDEO_H264_MAX_QP;
-				ext_ctrl[14].value = pEncPara->maximumQp;
-				
-				ext_ctrls.count += 3;
-			}
-
-			//ext_ctrl[15].id = V4L2_CID_MPEG_VIDEO_H264_PROFILE;
-			//ext_ctrl[15].value = ;
-		}
-		else if (hEnc->codecType == V4L2_PIX_FMT_MPEG4)
-		{
-			ext_ctrls.count = 11;
-
-			if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0))
+			if (hEnc->codecType == V4L2_PIX_FMT_H264)
 			{
-				ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP;
-				ext_ctrl[11].value = pEncPara->initialQp;
-				ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP;
-				ext_ctrl[12].value = pEncPara->initialQp;
-				ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP;
-				ext_ctrl[13].value = pEncPara->maximumQp;
+				ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_H264_AUD_INSERT;
+				ext_ctrl[11].value = pEncPara->enableAUDelimiter;
 				
-				ext_ctrls.count += 3;
+				ext_ctrls.count = 12;
+
+				if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0)) {
+					ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP;
+					ext_ctrl[12].value = pEncPara->initialQp;
+					ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP;
+					ext_ctrl[13].value = pEncPara->initialQp;
+					ext_ctrl[14].id = V4L2_CID_MPEG_VIDEO_H264_MAX_QP;
+					ext_ctrl[14].value = pEncPara->maximumQp;
+					
+					ext_ctrls.count += 3;
+				}
+
+				//ext_ctrl[15].id = V4L2_CID_MPEG_VIDEO_H264_PROFILE;
+				//ext_ctrl[15].value = ;
+			}
+			else if (hEnc->codecType == V4L2_PIX_FMT_MPEG4)
+			{
+				ext_ctrls.count = 11;
+
+				if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0))
+				{
+					ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP;
+					ext_ctrl[11].value = pEncPara->initialQp;
+					ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP;
+					ext_ctrl[12].value = pEncPara->initialQp;
+					ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP;
+					ext_ctrl[13].value = pEncPara->maximumQp;
+					
+					ext_ctrls.count += 3;
+				}
+			}
+			else if (hEnc->codecType == V4L2_PIX_FMT_H263)
+			{
+				ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_H263_PROFILE;
+				ext_ctrl[11].value = pEncPara->profile;
+				
+				ext_ctrls.count = 12;
+
+				if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0)) {
+					ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP;
+					ext_ctrl[12].value = pEncPara->initialQp;
+					ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP;
+					ext_ctrl[13].value = pEncPara->initialQp;
+					ext_ctrl[14].id = V4L2_CID_MPEG_VIDEO_H263_MAX_QP;
+					ext_ctrl[14].value = pEncPara->maximumQp;
+					
+					ext_ctrls.count += 3;
+				}
+			}
+
+			ext_ctrls.ctrl_class = V4L2_CTRL_CLASS_MPEG;
+			ext_ctrls.controls = ext_ctrl;
+
+			if (ioctl(hEnc->fd, VIDIOC_S_EXT_CTRLS, &ext_ctrls) != 0)
+			{
+				printf("Fail, ioctl(): VIDIOC_S_EXT_CTRLS\n");
+				return -1;
 			}
 		}
-		else if (hEnc->codecType == V4L2_PIX_FMT_H263)
+		else
 		{
-			ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_H263_PROFILE;
-			ext_ctrl[11].value = pEncPara->profile;
-			
-			ext_ctrls.count = 12;
+			struct v4l2_control ctrl;
 
-			if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0)) {
-				ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP;
-				ext_ctrl[12].value = pEncPara->initialQp;
-				ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP;
-				ext_ctrl[13].value = pEncPara->initialQp;
-				ext_ctrl[14].id = V4L2_CID_MPEG_VIDEO_H263_MAX_QP;
-				ext_ctrl[14].value = pEncPara->maximumQp;
-				
-				ext_ctrls.count += 3;
+			ctrl.id = V4L2_CID_JPEG_COMPRESSION_QUALITY;
+			ctrl.value = pEncPara->jpgQuality;
+
+			if (ioctl(hEnc->fd, VIDIOC_S_CTRL, &ctrl) != 0)
+			{
+				printf("Fail, ioctl(): VIDIOC_S_CTRL\n");
+				return -1;
 			}
-		}
-		else if (hEnc->codecType == V4L2_PIX_FMT_MJPEG)
-		{
-
-		}
-
-		ext_ctrls.ctrl_class = V4L2_CTRL_CLASS_MPEG;
-		ext_ctrls.controls = ext_ctrl;
-
-		if (ioctl(hEnc->fd, VIDIOC_S_EXT_CTRLS, &ext_ctrls) != 0)
-		{
-			printf("Fail, ioctl(): VIDIOC_S_EXT_CTRLS\n");
-			return -1;
-		}
+		}	
 	}
 
 	/* Malloc Input Image Buffer */
@@ -505,6 +523,7 @@ int32_t NX_V4l2EncEncodeFrame(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_IN *pEncIn, NX_
 	memset(pEncOut, 0, sizeof(NX_V4L2ENC_OUT));
 
 	/* Set Encode Parameter */
+	if (hEnc->codecType != V4L2_PIX_FMT_MJPEG)
 	{
 		struct v4l2_control ctrl;
 
@@ -552,7 +571,7 @@ int32_t NX_V4l2EncEncodeFrame(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_IN *pEncIn, NX_
 
 	for (i=0 ; i<hEnc->planesNum ; i++)
 	{
-		buf.m.planes[i].m.fd	= pEncIn->pImage->dmaFd[i];
+		buf.m.planes[i].m.fd = pEncIn->pImage->dmaFd[i];
 		buf.m.planes[i].length = pEncIn->pImage->size[i];
 	}
 

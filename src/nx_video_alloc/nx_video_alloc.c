@@ -22,6 +22,10 @@
 #include <nexell/nexell_drm.h>
 #include <nx_video_alloc.h>
 
+#include <libdrm/drm_fourcc.h>
+#include <linux/videodev2.h>
+#include <linux/videodev2_nxp_media.h> 
+
 #define DRM_DEVICE_NAME "/dev/dri/card0"
 
 #define DRM_IOCTL_NR(n)         _IOC_NR(n)
@@ -218,26 +222,58 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 	if (drmFd < 0)
 		return NULL;
 
-	//
-	//	NOTE : This is for Just YUV420 
-	//	FIXME
-	//
-
-#if 1 // Just for YUV420 Format
 	//	Luma
 	luStride = ALIGN(width, 32);
 	luVStride = ALIGN(height, 16);
+
 	//	Chroma
-	cStride = luStride/2;
-	cVStride = ALIGN(height/2, 16);
-#endif
+	switch (format)
+	{
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+	case V4L2_PIX_FMT_YUV420M:
+	case V4L2_PIX_FMT_NV12M:
+	case V4L2_PIX_FMT_NV21M:
+		cStride = luStride/2;
+		cVStride = ALIGN(height/2, 16);
+		break;
+
+	case DRM_FORMAT_YUV422:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
+	case V4L2_PIX_FMT_YUV422M:
+	case V4L2_PIX_FMT_NV16M:
+	case V4L2_PIX_FMT_NV61M:
+		cStride = luStride/2;
+		cVStride = luVStride;
+		break;
+
+	case DRM_FORMAT_YUV444:
+	//case DRM_FORMAT_NV24:
+	//case DRM_FORMAT_NV42:
+	case V4L2_PIX_FMT_YUV444M:
+	case V4L2_PIX_FMT_NV24M:
+	case V4L2_PIX_FMT_NV42M:
+		cStride = luStride;
+		cVStride = luVStride;
+		break;
+
+	case V4L2_PIX_FMT_GREY:
+		cStride = 0;
+		cVStride = 0;
+		break;
+	default:	
+		printf("Unknown format type\n");
+		return NULL;
+	}
 
 	//	Decide Memory Size
 	switch( planes )
 	{
 		case 1:
 			size[0] = luStride*luVStride + cStride*cVStride*2;
-			stride[0] = 0;
+			stride[0] = luStride;
 			gemFd[0] = alloc_gem(drmFd, size[0], flags);
 			if (gemFd[0] < 0)
 				goto ErrorExit;

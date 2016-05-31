@@ -273,6 +273,23 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		}
 	}
 
+	// Set Parameter
+	{
+		if (hDec->codecType == V4L2_PIX_FMT_MJPEG)
+		{
+			struct v4l2_control ctrl;
+
+			ctrl.id = V4L2_CID_MPEG_VIDEO_THUMBNAIL_MODE;
+			ctrl.value = pSeqIn->thumbnailMode;
+
+			if (ioctl(hDec->fd, VIDIOC_S_CTRL, &ctrl) != 0)
+			{
+				printf("failed to ioctl: Set Thumbnail Mode\n");
+				return -1;
+			}
+		}		
+	}
+		
 	// Parser Sequence Header
 	{
 		struct v4l2_plane planes[1];
@@ -342,6 +359,7 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 			return -1;
 		}
 
+		pSeqOut->imgFourCC = fmt.fmt.pix_mp.pixelformat;
 		pSeqOut->width = fmt.fmt.pix_mp.width;
 		pSeqOut->height = fmt.fmt.pix_mp.height;
 		pSeqOut->minBuffers = fmt.fmt.pix_mp.reserved[0];
@@ -380,13 +398,23 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 		fmt.fmt.pix_mp.width = pSeqIn->width;
 		fmt.fmt.pix_mp.height = pSeqIn->height;
 
-		switch(pSeqIn->imgFormat)
+		switch (pSeqIn->imgFormat)
 		{
-		case V4L2_PIX_FMT_YUV420M :
+		case V4L2_PIX_FMT_YUV420M:
+		case V4L2_PIX_FMT_YUV422M:
+		case V4L2_PIX_FMT_YUV444M:
 			planesNum = 3;
 			break;
-		case V4L2_PIX_FMT_NV12M :
+		case V4L2_PIX_FMT_NV12M:
+		case V4L2_PIX_FMT_NV21M:
+		case V4L2_PIX_FMT_NV16M:
+		case V4L2_PIX_FMT_NV61M:
+		case V4L2_PIX_FMT_NV24M:
+		case V4L2_PIX_FMT_NV42M:
 			planesNum = 2;
+			break;
+		case V4L2_PIX_FMT_GREY:
+			planesNum = 1;
 			break;
 		default :
 			printf("The color format is not supported!!!");

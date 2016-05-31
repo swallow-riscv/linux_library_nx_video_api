@@ -20,9 +20,11 @@
 #define _VIDEODEV2_NXP_MEDIA_H
 
 /*
- * compressed formats
+ * F O R M A T S
  */
 
+
+/* compressed formats */
 #define V4L2_PIX_FMT_DIV3			v4l2_fourcc('D', 'I', 'V', '3')
 #define V4L2_PIX_FMT_DIV4			v4l2_fourcc('D', 'I', 'V', '4')
 #define V4L2_PIX_FMT_DIV5			v4l2_fourcc('D', 'I', 'V', '5')
@@ -34,6 +36,15 @@
 #define V4L2_PIX_FMT_WVC1			v4l2_fourcc('W', 'V', 'C', '1')
 #define V4L2_PIX_FMT_FLV1			v4l2_fourcc('F', 'L', 'V', '1')
 #define V4L2_PIX_FMT_THEORA			v4l2_fourcc('T', 'H', 'E', 'O')
+
+/* two non contiguous planes - one Y, one Cr + Cb interleaved  */
+#define V4L2_PIX_FMT_NV24M   v4l2_fourcc('N', 'M', '2', '4') /* 24  Y/CbCr 4:4:4  */
+#define V4L2_PIX_FMT_NV42M   v4l2_fourcc('N', 'M', '4', '2') /* 24  Y/CrCb 4:4:4  */
+
+/* three non contiguous planes - Y, Cb, Cr */
+#define V4L2_PIX_FMT_YUV422M v4l2_fourcc('Y', 'M', '1', '6') /* 16  YUV422 planar */
+#define V4L2_PIX_FMT_YUV444M v4l2_fourcc('Y', 'M', '2', '4') /* 24  YUV444 planar */
+
 
 
 /*
