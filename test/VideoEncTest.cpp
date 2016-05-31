@@ -46,6 +46,7 @@
 
 #define IMAGE_BUFFER_NUM		8
 #define IMG_FORMAT			V4L2_PIX_FMT_YUV420M  //V4L2_PIX_FMT_NV12M
+#define IMG_PLANE_NUM		1
 
 
 static bool bExitLoop = false;
@@ -92,6 +93,8 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	int32_t i, j;
 	int32_t cWidth = 0, cHeight = 0;
 	uint8_t *pDst, *pCb, *pCr, *pCbCr, *pCrCb;
+	int32_t planeNum = pImg->planes;
+	int32_t cStride = pImg->stride[1];
 
 	// Copy Lu
 	pDst = (uint8_t *)pImg->pBuffer[0];
@@ -112,6 +115,8 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case DRM_FORMAT_NV21:
 		cWidth = w / 2;
 		cHeight = h / 2;
+		if (cStride == 0)
+			cStride = pImg->stride[0] / 2;
 		break;
 
 	case V4L2_PIX_FMT_YUV422M:
@@ -122,6 +127,8 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case DRM_FORMAT_NV61:
 		cWidth = w / 2;
 		cHeight = h;
+		if (cStride == 0)
+			cStride = pImg->stride[0] / 2;
 		break;
 
 	case V4L2_PIX_FMT_YUV444M:
@@ -130,6 +137,8 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case DRM_FORMAT_YUV444:
 		cWidth = w;
 		cHeight = h;
+		if (cStride == 0)
+			cStride = pImg->stride[0];
 	}
 
 	pCb = pSrc;
@@ -145,12 +154,13 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case DRM_FORMAT_YUV444:
 		for (i=1 ; i<3 ; i++)
 		{
-			pDst = (uint8_t *)pImg->pBuffer[i];
+			if (planeNum > 1)
+				pDst = (uint8_t *)pImg->pBuffer[i];
 
 			for (j=0 ; j<cHeight ; j++)
 			{
 				memcpy(pDst, pSrc, cWidth);
-				pDst += pImg->stride[i];
+				pDst += cStride;
 				pSrc += cWidth;
 			}
 		}
@@ -161,10 +171,12 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case V4L2_PIX_FMT_NV24M:
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
-		pDst = (uint8_t *)pImg->pBuffer[1];		
+		if (planeNum > 1)
+			pDst = (uint8_t *)pImg->pBuffer[1];	
+
 		for (i=0 ; i<cHeight ; i++)
 		{
-			pCbCr = pDst + pImg->stride[1] * i;
+			pCbCr = pDst + cStride * i;
 
 			for (j=0 ; j<cWidth ; j++)
 			{
@@ -179,10 +191,12 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case V4L2_PIX_FMT_NV42M:
 	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_NV61:
-		pDst = (uint8_t *)pImg->pBuffer[1];
+		if (planeNum > 1)
+			pDst = (uint8_t *)pImg->pBuffer[1];
+
 		for (i=0 ; i<cHeight ; i++)
 		{
-			pCrCb = pDst + pImg->stride[1] * i;
+			pCrCb = pDst + cStride * i;
 			
 			for (j=0 ; j<cWidth ; j++)
 			{
@@ -195,53 +209,37 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	return 0;
 }
 
-static int32_t GetImgInfo(uint32_t format, int32_t lSize, int *Size, int *planes)
+static int32_t GetImgInfo(uint32_t format, int32_t lSize, int *Size)
 {
 	switch (format)
 	{
 	case V4L2_PIX_FMT_YUV420M:
-	case DRM_FORMAT_YUV420:
-		*Size = lSize * 3 / 2;
-		*planes = 3;
-		break;
-
-	case V4L2_PIX_FMT_YUV422M:
-	case DRM_FORMAT_YUV422:
-		*Size = lSize * 2;
-		*planes = 3;
-		break;
-
-	case V4L2_PIX_FMT_YUV444M:
-	case DRM_FORMAT_YUV444:
-		*Size = lSize * 3;
-		*planes = 3;
-		break;
-
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV21M:
+	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV21:
 		*Size = lSize * 3 / 2;
-		*planes = 2;
 		break;
 
+	case V4L2_PIX_FMT_YUV422M:
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
+	case DRM_FORMAT_YUV422:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV61:
 		*Size = lSize * 2;
-		*planes = 2;
 		break;
 
+	case V4L2_PIX_FMT_YUV444M:
 	case V4L2_PIX_FMT_NV24M:
 	case V4L2_PIX_FMT_NV42M:
+	case DRM_FORMAT_YUV444:
 		*Size = lSize * 3;
-		*planes = 2;
 		break;
 
 	case V4L2_PIX_FMT_GREY:
 		*Size = lSize;
-		*planes = 1;
 		break;
 
 	default :
@@ -264,6 +262,7 @@ static int32_t VpuEncPerfMain(CODEC_APP_DATA *pAppData)
 	int32_t inWidth = pAppData->width;
 	int32_t inHeight = pAppData->height;
 	int32_t ret = 0, i;
+	int32_t planes = IMG_PLANE_NUM;
 	
 	FILE *fpIn = fopen(pAppData->inFileName, "rb");
 	FILE *fpOut = fopen(pAppData->outFileName, "wb");
@@ -377,6 +376,7 @@ static int32_t VpuEncPerfMain(CODEC_APP_DATA *pAppData)
 		encPara.enableAUDelimiter = 0;
 		encPara.imgFormat = IMG_FORMAT;
 		encPara.imgBufferNum = IMAGE_BUFFER_NUM;
+		encPara.imgPlaneNum = planes;
 
 		if (pAppData->codec == V4L2_PIX_FMT_MJPEG)
 			encPara.jpgQuality = (pAppData->qp == 0) ? (90) : (pAppData->qp);
@@ -407,10 +407,9 @@ static int32_t VpuEncPerfMain(CODEC_APP_DATA *pAppData)
 		int32_t frmCnt = 0, readSize;
 		uint64_t startTime, endTime;
 		int32_t imgSize;
-		int32_t planes;
 		uint8_t *pSrcBuf;
 
-		GetImgInfo(IMG_FORMAT, inWidth*inHeight, &imgSize, &planes);
+		GetImgInfo(IMG_FORMAT, inWidth*inHeight, &imgSize);
 
 		// Allocate Output Buffer
 		for (i = 0; i < IMAGE_BUFFER_NUM; i++)

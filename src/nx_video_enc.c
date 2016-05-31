@@ -201,7 +201,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 {
 	int inWidth = pEncPara->width;
 	int inHeight = pEncPara->height;
-	int i, planesNum;
+	int i;
 
 	if (NULL == hEnc)
 	{
@@ -236,27 +236,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 		fmt.fmt.pix_mp.pixelformat = pEncPara->imgFormat;
 		fmt.fmt.pix_mp.width = inWidth;
 		fmt.fmt.pix_mp.height = inHeight;
-
-		switch (pEncPara->imgFormat)
-		{
-		case V4L2_PIX_FMT_YUV420M:
-		case V4L2_PIX_FMT_YUV422M:
-		case V4L2_PIX_FMT_YUV444M:
-			planesNum = 3;
-			break;
-		case V4L2_PIX_FMT_NV12M:
-		case V4L2_PIX_FMT_NV16M:
-		case V4L2_PIX_FMT_NV24M:
-			planesNum = 2;
-			break;
-		case V4L2_PIX_FMT_GREY:
-			planesNum = 1;
-			break;
-		default :
-			printf("The color format is not supported!!!");
-			return -1;
-		}
-		fmt.fmt.pix_mp.num_planes = planesNum;
+		fmt.fmt.pix_mp.num_planes = pEncPara->imgPlaneNum;
 
 		if (ioctl(hEnc->fd, VIDIOC_S_FMT, &fmt) != 0)
 		{
@@ -264,7 +244,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 			return -1;
 		}
 
-		hEnc->planesNum = planesNum;
+		hEnc->planesNum = pEncPara->imgPlaneNum;
 	}
 
 	/* Set Encoder Parameter */

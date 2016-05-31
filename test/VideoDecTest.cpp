@@ -47,6 +47,8 @@
 
 //#define ENABLE_CBCR_INTERLEAVE
 
+#define IMG_PLANE_NUM	(1)
+
 static bool bExitLoop = false;
 
 //----------------------------------------------------------------------------------------------------
@@ -207,6 +209,7 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 		seqIn.width = seqOut.width;
 		seqIn.height = seqOut.height;
 		seqIn.numBuffers = 2;
+		seqIn.imgPlaneNum = IMG_PLANE_NUM;
 		
 #ifdef ENABLE_CBCR_INTERLEAVE
 		if (seqOut.imgFourCC == V4L2_PIX_FMT_YUV420M)
@@ -219,7 +222,7 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 			seqIn.imgFormat	= seqOut.imgFourCC;
 #else
 		seqIn.imgFormat	= seqOut.imgFourCC;
-#endif		
+#endif
 
 		ret = NX_V4l2DecInit(hDec, &seqIn);
 		if (ret < 0)

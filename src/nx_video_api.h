@@ -27,6 +27,7 @@ extern "C"{
 #define MAX_IMAGE_WIDTH			1920
 #define MAX_IMAGE_HEIGHT		1088
 
+
 typedef struct NX_V4L2ENC_INFO	*NX_V4L2ENC_HANDLE;
 typedef struct NX_V4L2DEC_INFO	*NX_V4L2DEC_HANDLE;
 
@@ -101,6 +102,7 @@ typedef struct tNX_V4L2ENC_PARA {
 
 	uint32_t imgFormat;			/* Fourcc of Input Image */
 	uint32_t imgBufferNum;			/* Number of Input Image Buffer */
+	uint32_t imgPlaneNum;			/* Number of Input Image Plane */
 
 	/* for JPEG Specific Parameter */
 	int32_t rotAngle;
@@ -137,6 +139,7 @@ typedef struct tNX_V4L2ENC_CHG_PARA {
 
 typedef struct tNX_V4L2DEC_SEQ_IN {
 	uint32_t imgFormat;			/* Fourcc for Decoded Image */
+	uint32_t imgPlaneNum;			/* Number of Input Image Plane */
 
 	uint8_t *seqBuf;			/* Sequence header's pointer */
 	int32_t seqSize;			/* Sequence header's size */

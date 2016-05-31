@@ -386,8 +386,6 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 /*----------------------------------------------------------------------------*/
 int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 {
-	int planesNum;
-
 	/* Set Output Image */
 	{
 		struct v4l2_format fmt;
@@ -397,30 +395,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 		fmt.fmt.pix_mp.pixelformat = pSeqIn->imgFormat;
 		fmt.fmt.pix_mp.width = pSeqIn->width;
 		fmt.fmt.pix_mp.height = pSeqIn->height;
-
-		switch (pSeqIn->imgFormat)
-		{
-		case V4L2_PIX_FMT_YUV420M:
-		case V4L2_PIX_FMT_YUV422M:
-		case V4L2_PIX_FMT_YUV444M:
-			planesNum = 3;
-			break;
-		case V4L2_PIX_FMT_NV12M:
-		case V4L2_PIX_FMT_NV21M:
-		case V4L2_PIX_FMT_NV16M:
-		case V4L2_PIX_FMT_NV61M:
-		case V4L2_PIX_FMT_NV24M:
-		case V4L2_PIX_FMT_NV42M:
-			planesNum = 2;
-			break;
-		case V4L2_PIX_FMT_GREY:
-			planesNum = 1;
-			break;
-		default :
-			printf("The color format is not supported!!!");
-			return -1;
-		}
-		fmt.fmt.pix_mp.num_planes = planesNum;
+		fmt.fmt.pix_mp.num_planes = pSeqIn->imgPlaneNum;
 
 		if (ioctl(hDec->fd, VIDIOC_S_FMT, &fmt) != 0)
 		{
@@ -428,7 +403,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 			return -1;
 		}
 
-		hDec->planesNum = planesNum;
+		hDec->planesNum = pSeqIn->imgPlaneNum;
 	}
 
 	/* Malloc Output Image */
@@ -470,7 +445,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 		memset(&buf, 0, sizeof(buf));
 		buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 		buf.m.planes = planes;
-		buf.length = planesNum;
+		buf.length = pSeqIn->imgPlaneNum;
 		buf.memory = V4L2_MEMORY_DMABUF;
 
 		/* Allocate Buffer(Internal or External) */
@@ -482,7 +457,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 			}
 			else
 			{
-				hDec->hImage[i] = NX_AllocateVideoMemory(pSeqIn->width, pSeqIn->height, planesNum, pSeqIn->imgFormat, 4096);
+				hDec->hImage[i] = NX_AllocateVideoMemory(pSeqIn->width, pSeqIn->height, pSeqIn->imgPlaneNum, pSeqIn->imgFormat, 4096);
 				if (hDec->hImage[i] == NULL)
 				{
 					printf("Failed to allocate image buffer(%d, %d, %d)\n", i, pSeqIn->width, pSeqIn->height);
@@ -497,7 +472,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 
 			buf.index = i;
 
-			for (j=0 ; j<planesNum; j++)
+			for (j=0 ; j<(int32_t)pSeqIn->imgPlaneNum; j++)
 			{
 				buf.m.planes[j].m.fd = hDec->hImage[i]->dmaFd[j];
 				buf.m.planes[j].length = hDec->hImage[i]->size[j];
