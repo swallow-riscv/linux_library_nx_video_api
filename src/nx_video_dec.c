@@ -165,8 +165,8 @@ ERROR_EXIT:
 /*----------------------------------------------------------------------------*/
 int32_t NX_V4l2DecClose(NX_V4L2DEC_HANDLE hDec)
 {
-	int32_t ret = 0;
-	int32_t i;
+	enum v4l2_buf_type type;
+	int32_t ret = 0, i;
 
 	if (NULL == hDec)
 	{
@@ -174,8 +174,19 @@ int32_t NX_V4l2DecClose(NX_V4L2DEC_HANDLE hDec)
 		return -1;
 	}
 
-	if (NX_V4l2DecFlush(hDec) < 0)
+	type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
+	if (ioctl(hDec->fd, VIDIOC_STREAMOFF, &type) != 0)
+	{
+		printf("failed to ioctl: VIDIOC_STREAMOFF(Stream)\n");
 		return -1;
+	}
+
+	type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	if (ioctl(hDec->fd, VIDIOC_STREAMOFF, &type) != 0)
+	{
+		printf("failed to ioctl: VIDIOC_STREAMOFF(Image)\n");
+		return -1;
+	}
 
 	if (hDec->useExternalFrameBuffer == 0)
 	{
@@ -705,6 +716,49 @@ int32_t NX_V4l2DecFlush(NX_V4L2DEC_HANDLE hDec)
 	{
 		printf("failed to ioctl: VIDIOC_STREAMOFF(Image)\n");
 		return -1;
+	}
+
+	type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;	
+	if (ioctl(hDec->fd, VIDIOC_STREAMON, &type) != 0)
+	{
+		printf("Fail, ioctl(): VIDIOC_STREAMON. (Input)\n");
+		return -1;
+	}		
+
+	type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	if (ioctl(hDec->fd, VIDIOC_STREAMON, &type) != 0)
+	{
+		printf("failed to ioctl: VIDIOC_STREAMON\n");
+		return -1;
+	}
+
+	{
+		struct v4l2_plane planes[3];
+		struct v4l2_buffer buf;
+		int32_t i, j;
+
+		memset(&buf, 0, sizeof(buf));
+		buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+		buf.m.planes = planes;
+		buf.length = hDec->planesNum;
+		buf.memory = V4L2_MEMORY_DMABUF;
+
+		for (i = 0 ; i < hDec->numFrameBuffers ; i++)
+		{
+			buf.index = i;
+
+			for (j = 0 ; j < (int32_t)hDec->planesNum; j++)
+			{
+				buf.m.planes[j].m.fd = hDec->hImage[i]->dmaFd[j];
+				buf.m.planes[j].length = hDec->hImage[i]->size[j];
+			}
+
+			if (ioctl(hDec->fd, VIDIOC_QBUF, &buf) != 0)
+			{
+				printf("failed to ioctl: VIDIOC_QBUF(Output YUV - %d)\n", i);
+				return -1;
+			}			 
+		}
 	}
 
 	return 0;
