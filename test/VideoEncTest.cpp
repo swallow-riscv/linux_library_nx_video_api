@@ -95,6 +95,8 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	uint8_t *pDst, *pCb, *pCr, *pCbCr, *pCrCb;
 	int32_t planeNum = pImg->planes;
 	int32_t cStride = pImg->stride[1];
+	int32_t cSize = 0;
+	int32_t luSize = ((w + 31) & (~31)) * ((h + 15) & (~15));
 
 	// Copy Lu
 	pDst = (uint8_t *)pImg->pBuffer[0];
@@ -115,8 +117,11 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case DRM_FORMAT_NV21:
 		cWidth = w / 2;
 		cHeight = h / 2;
-		if (cStride == 0)
+		if (planeNum == 1)
+		{
 			cStride = pImg->stride[0] / 2;
+			cSize = cStride * ((h/2 + 15) & (~15));
+		}
 		break;
 
 	case V4L2_PIX_FMT_YUV422M:
@@ -127,8 +132,11 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case DRM_FORMAT_NV61:
 		cWidth = w / 2;
 		cHeight = h;
-		if (cStride == 0)
+		if (planeNum == 1)
+		{
 			cStride = pImg->stride[0] / 2;
+			cSize = cStride * ((h + 15) & (~15));
+		}
 		break;
 
 	case V4L2_PIX_FMT_YUV444M:
@@ -137,8 +145,11 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case DRM_FORMAT_YUV444:
 		cWidth = w;
 		cHeight = h;
-		if (cStride == 0)
+		if (planeNum == 1)
+		{
 			cStride = pImg->stride[0];
+			cSize = luSize;
+		}
 	}
 
 	pCb = pSrc;
@@ -156,6 +167,10 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 		{
 			if (planeNum > 1)
 				pDst = (uint8_t *)pImg->pBuffer[i];
+			else if (i == 1)
+				pDst = (uint8_t *)pImg->pBuffer[0] + luSize;
+			else if (i == 2)
+				pDst = (uint8_t *)pImg->pBuffer[0] + luSize + cSize;
 
 			for (j=0 ; j<cHeight ; j++)
 			{
@@ -173,6 +188,8 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case DRM_FORMAT_NV16:
 		if (planeNum > 1)
 			pDst = (uint8_t *)pImg->pBuffer[1];	
+		else 
+			pDst = (uint8_t *)pImg->pBuffer[0] + luSize;
 
 		for (i=0 ; i<cHeight ; i++)
 		{
@@ -193,6 +210,8 @@ static int32_t LoadImage(uint8_t *pSrc, int32_t w, int32_t h, NX_VID_MEMORY_INFO
 	case DRM_FORMAT_NV61:
 		if (planeNum > 1)
 			pDst = (uint8_t *)pImg->pBuffer[1];
+		else 
+			pDst = (uint8_t *)pImg->pBuffer[0] + luSize;
 
 		for (i=0 ; i<cHeight ; i++)
 		{
