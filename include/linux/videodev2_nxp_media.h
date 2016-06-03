@@ -38,12 +38,16 @@
 #define V4L2_PIX_FMT_THEORA			v4l2_fourcc('T', 'H', 'E', 'O')
 
 /* two non contiguous planes - one Y, one Cr + Cb interleaved  */
-#define V4L2_PIX_FMT_NV24M   v4l2_fourcc('N', 'M', '2', '4') /* 24  Y/CbCr 4:4:4  */
-#define V4L2_PIX_FMT_NV42M   v4l2_fourcc('N', 'M', '4', '2') /* 24  Y/CrCb 4:4:4  */
+/* 24  Y/CbCr 4:4:4 */
+#define V4L2_PIX_FMT_NV24M	v4l2_fourcc('N', 'M', '2', '4')
+/* 24  Y/CrCb 4:4:4 */
+#define V4L2_PIX_FMT_NV42M	v4l2_fourcc('N', 'M', '4', '2')
 
 /* three non contiguous planes - Y, Cb, Cr */
-#define V4L2_PIX_FMT_YUV422M v4l2_fourcc('Y', 'M', '1', '6') /* 16  YUV422 planar */
-#define V4L2_PIX_FMT_YUV444M v4l2_fourcc('Y', 'M', '2', '4') /* 24  YUV444 planar */
+/* 16  YUV422 planar */
+#define V4L2_PIX_FMT_YUV422M	v4l2_fourcc('Y', 'M', '1', '6')
+/* 24  YUV444 planar */
+#define V4L2_PIX_FMT_YUV444M	v4l2_fourcc('Y', 'M', '2', '4')
 
 
 
