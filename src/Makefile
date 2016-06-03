@@ -17,7 +17,7 @@ COBJS	:= \
 		nx_video_alloc/nx_video_alloc.o	\
 		nx_video_enc.o \
 		nx_video_dec.o
-CPPOBJS	:=  
+CPPOBJS	:=
 OBJS	:= $(COBJS) $(CPPOBJS)
 
 # Add Include Path
@@ -40,6 +40,7 @@ install:
 	install -m 755 -d $(LIB_PATH)
 	install -m 755 -d $(INC_PATH)
 	install -m 644 $(TARGET) $(LIB_PATH)
+	install -m 644 ../include/linux/videodev2_nxp_media.h $(INC_PATH)
 	install -m 644 ./nx_video_alloc/nx_video_alloc.h $(INC_PATH)
 	install -m 644 nx_video_api.h $(INC_PATH)
 
@@ -51,6 +52,7 @@ distclean:
 	@echo "$(ColorMagenta)[[[ Distclean $(LIBNAME) ]]]$(ColorEnd)"
 	rm -f $(COBJS) $(CPPOBJS) $(TARGET) .depend
 	rm -f $(LIB_PATH)/$(TARGET)
+	rm -f $(INC_PATH)/videodev2_nxp_media.h
 	rm -f $(INC_PATH)/nx_video_alloc.h
 	rm -f $(INC_PATH)/nx_video_api.h
 
