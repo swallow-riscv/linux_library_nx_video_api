@@ -24,7 +24,7 @@
 
 #include <libdrm/drm_fourcc.h>
 #include <linux/videodev2.h>
-#include <linux/videodev2_nxp_media.h> 
+#include <linux/videodev2_nxp_media.h>
 
 #define DRM_DEVICE_NAME "/dev/dri/card0"
 
@@ -263,7 +263,7 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 		cStride = 0;
 		cVStride = 0;
 		break;
-	default:	
+	default:
 		printf("Unknown format type\n");
 		return NULL;
 	}

@@ -36,7 +36,7 @@ enum {
 	PIC_TYPE_P			= 1,
 	PIC_TYPE_B			= 2,
 #if 0
-	/* TBD */	
+	/* TBD */
 	PIC_TYPE_VC1_BI			= 2,
 	PIC_TYPE_VC1_B			= 3,
 	PIC_TYPE_D			= 3,		/* D picture in mpeg2, and is only composed of DC codfficients */

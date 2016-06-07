@@ -89,14 +89,14 @@ static int V4l2EncOpen(void)
 			if (fgets(name, sizeof(name), stream_fd) == 0)
 			{
 				printf("failed to read sysfs entry for videodev\n");
-			} 
+			}
 			else
 			{
 				if (strncmp(name, NX_V4L2_ENC_NAME, strlen(NX_V4L2_ENC_NAME)) == 0)
 				{
 					printf("node found for device %s: /dev/video%d\n", NX_V4L2_ENC_NAME, i);
 					found = true;
-				}			
+				}
 			}
 
 			fclose(stream_fd);
@@ -137,7 +137,7 @@ NX_V4L2ENC_HANDLE NX_V4l2EncOpen(uint32_t codecType)
 		struct v4l2_capability cap;
 
 		memset(&cap, 0, sizeof(cap));
-		
+
 		if (ioctl(hEnc->fd, VIDIOC_QUERYCAP, &cap) != 0)
 		{
 			printf("failed to ioctl: VIDIOC_QUERYCAP\n");
@@ -153,14 +153,14 @@ ERROR_EXIT:
 	if (hEnc)
 		free(hEnc);
 
-	return NULL;		
+	return NULL;
 }
 
 /*----------------------------------------------------------------------------*/
 int32_t NX_V4l2EncClose(NX_V4L2ENC_HANDLE hEnc)
 {
 	enum v4l2_buf_type type;
-	int32_t ret = 0;	
+	int32_t ret = 0;
 	int i;
 
 	if (NULL == hEnc)
@@ -207,7 +207,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 	{
 		printf("Fail, Invalid Handle.\n");
 		return -1;
-	}	
+	}
 
 	/* Set Stream Format */
 	{
@@ -282,7 +282,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 			{
 				ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_H264_AUD_INSERT;
 				ext_ctrl[11].value = pEncPara->enableAUDelimiter;
-				
+
 				ext_ctrls.count = 12;
 
 				if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0)) {
@@ -292,7 +292,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 					ext_ctrl[13].value = pEncPara->initialQp;
 					ext_ctrl[14].id = V4L2_CID_MPEG_VIDEO_H264_MAX_QP;
 					ext_ctrl[14].value = pEncPara->maximumQp;
-					
+
 					ext_ctrls.count += 3;
 				}
 
@@ -311,7 +311,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 					ext_ctrl[12].value = pEncPara->initialQp;
 					ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP;
 					ext_ctrl[13].value = pEncPara->maximumQp;
-					
+
 					ext_ctrls.count += 3;
 				}
 			}
@@ -319,7 +319,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 			{
 				ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_H263_PROFILE;
 				ext_ctrl[11].value = pEncPara->profile;
-				
+
 				ext_ctrls.count = 12;
 
 				if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0)) {
@@ -329,7 +329,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 					ext_ctrl[13].value = pEncPara->initialQp;
 					ext_ctrl[14].id = V4L2_CID_MPEG_VIDEO_H263_MAX_QP;
 					ext_ctrl[14].value = pEncPara->maximumQp;
-					
+
 					ext_ctrls.count += 3;
 				}
 			}
@@ -355,7 +355,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 				printf("Fail, ioctl(): VIDIOC_S_CTRL\n");
 				return -1;
 			}
-		}	
+		}
 	}
 
 	/* Malloc Input Image Buffer */
@@ -366,7 +366,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 		/* IOCTL : VIDIOC_REQBUFS For Input Yuv */
 		memset(&req, 0, sizeof(req));
 		req.type	 = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-		req.count = bufferCount;		
+		req.count = bufferCount;
 		req.memory = V4L2_MEMORY_DMABUF;	/* V4L2_MEMORY_USERPTR, V4L2_MEMORY_DMABUF, V4L2_MEMORY_MMAP */
 
 		if (ioctl(hEnc->fd, VIDIOC_REQBUFS, &req) != 0)
@@ -647,7 +647,7 @@ int32_t NX_V4l2EncChangeParameter(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_CHG_PARA *p
 		ctrl.id = V4L2_CID_MPEG_VIDEO_GOP_SIZE;
 		ctrl.value = pChgPara->keyFrmInterval;
 
-		if (ioctl(hEnc->fd, VIDIOC_S_CTRL, &ctrl) != 0) 
+		if (ioctl(hEnc->fd, VIDIOC_S_CTRL, &ctrl) != 0)
 		{
 			printf("failed to ioctl: Change Key Frame Interval\n");
 			return -1;
@@ -686,7 +686,7 @@ int32_t NX_V4l2EncChangeParameter(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_CHG_PARA *p
 			return -1;
 		}
 	}
-	
+
 	if (pChgPara->chgFlg & VID_CHG_INTRARF)
 	{
 		ctrl.id = V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB;

@@ -47,8 +47,8 @@ struct NX_V4L2DEC_INFO {
 
 	NX_MEMORY_HANDLE hStream[STREAM_BUFFER_NUM];
 
-	IMG_DISP_INFO dispInfo;	
-	
+	IMG_DISP_INFO dispInfo;
+
 	int32_t planesNum;
 
 	int32_t frameCnt;
@@ -101,7 +101,7 @@ static int32_t V4l2DecOpen(void)
 				{
 					printf("node found for device %s: /dev/video%d \n", NX_V4L2_DEC_NAME, i);
 					found = true;
-				}				
+				}
 			}
 
 			fclose(stream_fd);
@@ -141,9 +141,9 @@ NX_V4L2DEC_HANDLE NX_V4l2DecOpen(uint32_t codecType)
 	/* Query capabilities of Device */
 	{
 		struct v4l2_capability cap;
-	
-		memset(&cap, 0, sizeof(cap));	
-		
+
+		memset(&cap, 0, sizeof(cap));
+
 		if (ioctl(hDec->fd, VIDIOC_QUERYCAP, &cap) != 0)
 		{
 			printf("failed to ioctl: VIDIOC_QUERYCAP\n");
@@ -298,9 +298,9 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 				printf("failed to ioctl: Set Thumbnail Mode\n");
 				return -1;
 			}
-		}		
+		}
 	}
-		
+
 	// Parser Sequence Header
 	{
 		struct v4l2_plane planes[1];
@@ -308,7 +308,7 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 
 		memcpy((void *)hDec->hStream[0]->pBuffer, pSeqIn->seqBuf, pSeqIn->seqSize);
-		
+
 		memset(&buf, 0, sizeof(buf));
 		buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		buf.m.planes = planes;
@@ -330,11 +330,11 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 			printf("failed to ioctl: VIDIOC_QBUF(Header Stream)\n");
 			return -1;
 		}
-		
+
 		if (ioctl(hDec->fd, VIDIOC_STREAMON, &type) != 0) {
 			printf("Fail, ioctl(): VIDIOC_STREAMON. (Input)\n");
 			return -1;
-		}		
+		}
 
 		memset(&buf, 0, sizeof(buf));
 		buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
@@ -420,9 +420,9 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 	/* Malloc Output Image */
 	{
 		struct v4l2_requestbuffers req;
-		struct v4l2_plane planes[3];		
+		struct v4l2_plane planes[3];
 		struct v4l2_buffer buf;
-		enum v4l2_buf_type type;	
+		enum v4l2_buf_type type;
 		int32_t imgBuffCnt, i, j;
 
 		/* Calculate Buffer Number */
@@ -462,7 +462,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 		/* Allocate Buffer(Internal or External) */
 		for (i=0 ; i<imgBuffCnt ; i++)
 		{
-			if (true == hDec->useExternalFrameBuffer) 
+			if (true == hDec->useExternalFrameBuffer)
 			{
 				hDec->hImage[i] = pSeqIn->pMemHandle[i];
 			}
@@ -493,7 +493,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 			{
 				printf("failed to ioctl: VIDIOC_QBUF(Output YUV - %d)\n", i);
 				return -1;
-			}			 
+			}
 		}
 
 		type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -688,7 +688,7 @@ int32_t NX_V4l2DecClrDspFlag(NX_V4L2DEC_HANDLE hDec, NX_VID_MEMORY_HANDLE hFrame
 	{
 		printf("Fail, ioctl(): VIDIOC_QBUF.(Clear Display Index, index = %d)\n", index);
 		return -1;
-	}	
+	}
 
 	return 0;
 }
@@ -718,12 +718,12 @@ int32_t NX_V4l2DecFlush(NX_V4L2DEC_HANDLE hDec)
 		return -1;
 	}
 
-	type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;	
+	type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 	if (ioctl(hDec->fd, VIDIOC_STREAMON, &type) != 0)
 	{
 		printf("Fail, ioctl(): VIDIOC_STREAMON. (Input)\n");
 		return -1;
-	}		
+	}
 
 	type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	if (ioctl(hDec->fd, VIDIOC_STREAMON, &type) != 0)
@@ -757,7 +757,7 @@ int32_t NX_V4l2DecFlush(NX_V4L2DEC_HANDLE hDec)
 			{
 				printf("failed to ioctl: VIDIOC_QBUF(Output YUV - %d)\n", i);
 				return -1;
-			}			 
+			}
 		}
 	}
 

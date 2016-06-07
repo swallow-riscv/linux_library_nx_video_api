@@ -14,14 +14,14 @@ TARGET	:= $(LIBNAME).so
 
 # Sources
 COBJS	:= \
-		nx_video_alloc/nx_video_alloc.o	\
-		nx_video_enc.o \
+		nx_video_alloc.o	\
+		nx_video_enc.o		\
 		nx_video_dec.o
 CPPOBJS	:=
 OBJS	:= $(COBJS) $(CPPOBJS)
 
 # Add Include Path
-INCLUDE	+= -I./ -I../include/ -I./nx_video_alloc -I$(INC_PATH)
+INCLUDE	+= -I./ -I./include -I../include/ -I$(INC_PATH)
 
 # Add Dependent Libraries
 LIBRARY += -L$(LIB_PATH)
@@ -40,8 +40,8 @@ install:
 	install -m 755 -d $(LIB_PATH)
 	install -m 755 -d $(INC_PATH)
 	install -m 644 $(TARGET) $(LIB_PATH)
-	install -m 644 ../include/linux/videodev2_nxp_media.h $(INC_PATH)
-	install -m 644 ./nx_video_alloc/nx_video_alloc.h $(INC_PATH)
+	install -m 644 ./include/linux/videodev2_nxp_media.h $(INC_PATH)
+	install -m 644 nx_video_alloc.h $(INC_PATH)
 	install -m 644 nx_video_api.h $(INC_PATH)
 
 clean:
