@@ -7,6 +7,7 @@ Group: Development/Libraries
 Source:  %{name}-%{version}.tar.gz
 
 BuildRequires:  pkgconfig automake autoconf libtool
+BuildRequires:	libdrm-devel
 
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
