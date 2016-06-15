@@ -1,5 +1,5 @@
 #include <linux/videodev2.h>
-#include <linux/videodev2_nxp_media.h>
+#include <videodev2_nxp_media.h>
 
 //  FFMPEG Headers
 #ifdef __cplusplus

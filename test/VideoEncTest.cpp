@@ -27,7 +27,7 @@
 #include <unistd.h>
 
 #include <linux/videodev2.h>
-#include <linux/videodev2_nxp_media.h>
+#include <videodev2_nxp_media.h>
 
 #include <nx_video_alloc.h>
 #include <nx_video_api.h>
