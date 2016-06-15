@@ -30,6 +30,7 @@ ABOUT-NLS
 _stdint.h
 
 .deps
+.depend
 .libs
 *.lo
 *.la
