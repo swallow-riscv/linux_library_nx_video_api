@@ -373,7 +373,7 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		pSeqOut->imgFourCC = fmt.fmt.pix_mp.pixelformat;
 		pSeqOut->width = fmt.fmt.pix_mp.width;
 		pSeqOut->height = fmt.fmt.pix_mp.height;
-		pSeqOut->minBuffers = fmt.fmt.pix_mp.reserved[0];
+		pSeqOut->minBuffers = fmt.fmt.pix_mp.reserved[1];
 		hDec->numFrameBuffers = pSeqOut->minBuffers;
 
 		memset(&crop, 0, sizeof(crop));
