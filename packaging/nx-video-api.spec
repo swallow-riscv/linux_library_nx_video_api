@@ -1,6 +1,6 @@
 Name:    nx-video-api
 Version: 0.0.1
-Release: 0
+Release: 1
 License: Apache 2.0
 Summary: Nexell video APIs
 Group: Development/Libraries
