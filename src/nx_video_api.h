@@ -75,31 +75,39 @@ typedef struct {
 } IMG_DISP_INFO;
 
 typedef struct tNX_V4L2ENC_PARA {
-	int32_t width;				/* Width of image */
-	int32_t height;				/* Height of image */
+	int32_t width;					/* Width of image */
+	int32_t height;					/* Height of image */
 	int32_t keyFrmInterval;			/* Size of key frame interval */
-	int32_t fpsNum;				/* Frame per second */
+	int32_t fpsNum;					/* Frame per second */
 	int32_t fpsDen;
 
 	uint32_t profile;
 
 	/* Rate Control Parameters (They are valid only when CBR.) */
-	uint32_t bitrate;			/* Target bitrate in bits per second */
-	int32_t maximumQp;			/* Maximum quantization parameter */
-	int32_t disableSkip;			/* Disable skip frame mode */
-	int32_t RCDelay;			/* Valid value is 0 ~ 0x7FFF */
-						/* 0 does not check reference decoder buffer delay constraint. */
-	uint32_t rcVbvSize;			/* Reference decoder buffer size in bits */
-	int32_t gammaFactor;			/* User gamma factor */
-	int32_t initialQp;			/* Initial quantization parameter */
+	uint32_t bitrate;				/* Target bitrate in bits per second */
+	int32_t maximumQp;				/* Maximum quantization parameter in CBR */
+									/* In MPEG-4/H.263 mode, available range is 3 to 31. In H.264 mode, the allowed range is 13 to 51.*/
+	int32_t disableSkip;			/* Disable rate control automatic skip frame */
+	int32_t RCDelay;				/* Reference decoder initial buffer removal delay in mili-second(ms) */
+									/* Valid value is 0 ~ 0x7FFF. */
+									/* 0 does not check reference decoder buffer delay constraint. */
+	uint32_t rcVbvSize;				/* Reference decoder buffer size in bits */
+									/* This value is ignored if RCDelay is 0. */
+									/* Valid value is 0 ~ 0x7FFFFFFF. */
+									/* 0 dose not check Reference decoder buffer size constraint. */
+	int32_t gammaFactor;			/* A gamma is the smoothing factor in the estimation. A value for gamma is factor * 32768, factor value is selected from the 0 <= factor >= 1.*/
+									/* If the factor value getting close to 0, Qp will be changed slowly. If the factor value getting close to 1, Qp will be chgnged quickly. */
+									/* Default gamma value is 0.75 * 32768. */
+	int32_t initialQp;				/* Initial quantization parameter */
 
 	int32_t numIntraRefreshMbs;		/* Intra MB refresh number(Cyclic Intra Refresh) */
+									/* It must be less than encoded Mbs(width * height / 256) */
 	int32_t searchRange;			/* search range of motion estimaiton(0 : 128 x 64, 1 : 64 x 32, 2 : 32 x 16, 3 : 16 x 16) */
 
 	/* for H.264 Encoder */
 	int32_t enableAUDelimiter;		/* Insert Access Unit Delimiter before NAL unit. */
 
-	uint32_t imgFormat;			/* Fourcc of Input Image */
+	uint32_t imgFormat;				/* Fourcc of Input Image */
 	uint32_t imgBufferNum;			/* Number of Input Image Buffer */
 	uint32_t imgPlaneNum;			/* Number of Input Image Plane */
 
@@ -107,30 +115,30 @@ typedef struct tNX_V4L2ENC_PARA {
 	int32_t rotAngle;
 	int32_t mirDirection;			/* 0 : not mir, 1 : horizontal mir, 2 : vertical mir, 3 : horizontal & vertical mir */
 
-	int32_t jpgQuality;			/* 1 ~ 100 */
+	int32_t jpgQuality;				/* 1 ~ 100 */
 } NX_V4L2ENC_PARA;
 
 typedef struct tNX_V4L2ENC_IN {
-	NX_VID_MEMORY_HANDLE pImage;		/* Original captured frame's pointer */
+	NX_VID_MEMORY_HANDLE pImage;	/* Original captured frame's pointer */
 	int32_t imgIndex;
-	uint64_t timeStamp;			/* Time stamp */
+	uint64_t timeStamp;				/* Time stamp */
 	int32_t forcedIFrame;			/* Flag of forced intra frame */
 	int32_t forcedSkipFrame;		/* Flag of forced skip frame */
-	int32_t quantParam;			/* User quantization parameter(It is valid only when VBR.) */
+	int32_t quantParam;				/* User quantization parameter(It is valid only when VBR.) */
 } NX_V4L2ENC_IN;
 
 typedef struct tNX_V4L2ENC_OUT {
-	uint8_t *strmBuf;			/* compressed stream's pointer */
-	int32_t strmSize;			/* compressed stream's size */
-	int32_t frameType;			/* Frame type */
-	NX_VID_MEMORY_INFO reconImg;		/* TBD. Reconstructed image's pointer */
+	uint8_t *strmBuf;				/* compressed stream's pointer */
+	int32_t strmSize;				/* compressed stream's size */
+	int32_t frameType;				/* Frame type */
+	NX_VID_MEMORY_INFO reconImg;	/* TBD. Reconstructed image's pointer */
 } NX_V4L2ENC_OUT;
 
 typedef struct tNX_V4L2ENC_CHG_PARA {
 	int32_t chgFlg;
 	int32_t keyFrmInterval;			/* Size of key frame interval */
-	int32_t bitrate;			/* Target bitrate in bits/second */
-	int32_t fpsNum;				/* Frame per second */
+	int32_t bitrate;				/* Target bitrate in bits/second */
+	int32_t fpsNum;					/* Frame per second */
 	int32_t fpsDen;
 	int32_t disableSkip;			/* Disable skip frame mode */
 	int32_t numIntraRefreshMbs;		/* Intra MB refresh number(Cyclic Intra Refresh) */

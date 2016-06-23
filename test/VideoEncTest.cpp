@@ -44,7 +44,7 @@
 #include "DrmRender.h"
 #endif
 
-#define IMAGE_BUFFER_NUM		8
+#define IMAGE_BUFFER_NUM	8
 #define IMG_FORMAT			V4L2_PIX_FMT_YUV420M  //V4L2_PIX_FMT_NV12M
 #define IMG_PLANE_NUM		1
 
@@ -384,10 +384,10 @@ static int32_t VpuEncPerfMain(CODEC_APP_DATA *pAppData)
 		encPara.fpsDen = (pAppData->fpsDen) ? (pAppData->fpsDen) : (1);
 		encPara.keyFrmInterval = (pAppData->gop) ? (pAppData->gop) : (encPara.fpsNum / encPara.fpsDen);
 		encPara.bitrate = pAppData->kbitrate * 1024;
-		encPara.maximumQp = pAppData->maxQp;
+		encPara.maximumQp = (pAppData->maxQp) ? (pAppData->maxQp) : (0);
+		encPara.rcVbvSize = (pAppData->vbv) ? (pAppData->vbv) : (0);
 		encPara.disableSkip = 0;
 		encPara.RCDelay = 0;
-		encPara.rcVbvSize = 0;
 		encPara.gammaFactor = 0;
 		encPara.initialQp = pAppData->qp;
 		encPara.numIntraRefreshMbs = 0;
@@ -450,7 +450,7 @@ static int32_t VpuEncPerfMain(CODEC_APP_DATA *pAppData)
 
 		pSrcBuf = (uint8_t *)malloc(imgSize);
 
-		while(!bExitLoop)
+		while (!bExitLoop)
 		{
 			NX_V4L2ENC_IN encIn;
 			NX_V4L2ENC_OUT encOut;

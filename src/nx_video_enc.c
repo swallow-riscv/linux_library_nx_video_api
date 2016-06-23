@@ -33,7 +33,7 @@
 #define NX_V4L2_ENC_NAME		"nx-vpu-enc"
 #define VIDEODEV_MINOR_MAX		63
 #define MAX_CTRL_NUM 			32
-#define STREAM_BUFFER_NUM	1
+#define STREAM_BUFFER_NUM		1
 
 
 struct NX_V4L2ENC_INFO {
@@ -108,7 +108,7 @@ static int V4l2EncOpen(void)
 	if (found)
 	{
 		sprintf(filename, "/dev/video%d", i - 1);
-		fd = open(filename,  O_RDWR);
+		fd = open(filename, O_RDWR);
 	}
 
 	return fd;
@@ -282,18 +282,19 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 			{
 				ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_H264_AUD_INSERT;
 				ext_ctrl[11].value = pEncPara->enableAUDelimiter;
+				ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_H264_MAX_QP;
+				ext_ctrl[12].value = pEncPara->maximumQp;
 
-				ext_ctrls.count = 12;
+				ext_ctrls.count = 13;
 
-				if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0)) {
-					ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP;
-					ext_ctrl[12].value = pEncPara->initialQp;
-					ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP;
+				if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0))
+				{
+					ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP;
 					ext_ctrl[13].value = pEncPara->initialQp;
-					ext_ctrl[14].id = V4L2_CID_MPEG_VIDEO_H264_MAX_QP;
-					ext_ctrl[14].value = pEncPara->maximumQp;
+					ext_ctrl[14].id = V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP;
+					ext_ctrl[14].value = pEncPara->initialQp;
 
-					ext_ctrls.count += 3;
+					ext_ctrls.count += 2;
 				}
 
 				//ext_ctrl[15].id = V4L2_CID_MPEG_VIDEO_H264_PROFILE;
@@ -301,36 +302,37 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 			}
 			else if (hEnc->codecType == V4L2_PIX_FMT_MPEG4)
 			{
-				ext_ctrls.count = 11;
+				ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP;
+				ext_ctrl[11].value = pEncPara->maximumQp;
+
+				ext_ctrls.count = 12;
 
 				if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0))
 				{
-					ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP;
-					ext_ctrl[11].value = pEncPara->initialQp;
-					ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP;
+					ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP;
 					ext_ctrl[12].value = pEncPara->initialQp;
-					ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP;
-					ext_ctrl[13].value = pEncPara->maximumQp;
+					ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP;
+					ext_ctrl[13].value = pEncPara->initialQp;
 
-					ext_ctrls.count += 3;
+					ext_ctrls.count += 2;
 				}
 			}
 			else if (hEnc->codecType == V4L2_PIX_FMT_H263)
 			{
 				ext_ctrl[11].id = V4L2_CID_MPEG_VIDEO_H263_PROFILE;
 				ext_ctrl[11].value = pEncPara->profile;
+				ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_H263_MAX_QP;
+				ext_ctrl[12].value = pEncPara->maximumQp;
 
-				ext_ctrls.count = 12;
+				ext_ctrls.count = 13;
 
 				if ((pEncPara->bitrate == 0) || (pEncPara->initialQp > 0)) {
-					ext_ctrl[12].id = V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP;
-					ext_ctrl[12].value = pEncPara->initialQp;
-					ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP;
+					ext_ctrl[13].id = V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP;
 					ext_ctrl[13].value = pEncPara->initialQp;
-					ext_ctrl[14].id = V4L2_CID_MPEG_VIDEO_H263_MAX_QP;
-					ext_ctrl[14].value = pEncPara->maximumQp;
+					ext_ctrl[14].id = V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP;
+					ext_ctrl[14].value = pEncPara->initialQp;
 
-					ext_ctrls.count += 3;
+					ext_ctrls.count += 2;
 				}
 			}
 
@@ -385,7 +387,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 		memset(&req, 0, sizeof(req));
 		req.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		req.count = bufferCount;
-		req.memory = V4L2_MEMORY_DMABUF;		// V4L2_MEMORY_USERPTR;
+		req.memory = V4L2_MEMORY_DMABUF;
 
 		if (ioctl(hEnc->fd, VIDIOC_REQBUFS, &req) != 0)
 		{
@@ -423,7 +425,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 		buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		buf.m.planes = planes;
 		buf.length = 1;
-		buf.memory = V4L2_MEMORY_DMABUF;	//V4L2_MEMORY_USERPTR;
+		buf.memory = V4L2_MEMORY_DMABUF;
 		buf.index = 0;
 
 		buf.m.planes[0].m.fd = hEnc->hBitStream[0]->dmaFd;
@@ -495,7 +497,8 @@ int32_t NX_V4l2EncEncodeFrame(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_IN *pEncIn, NX_
 	struct v4l2_buffer buf;
 	int i;
 
-	if (hEnc == NULL) {
+	if (hEnc == NULL)
+	{
 		printf("Fail, Invalid Handle.\n");
 		return -1;
 	}
@@ -569,7 +572,7 @@ int32_t NX_V4l2EncEncodeFrame(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_IN *pEncIn, NX_
 		buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		buf.m.planes = planes;
 		buf.length = 1;
-		buf.memory = V4L2_MEMORY_DMABUF;	//V4L2_MEMORY_USERPTR;
+		buf.memory = V4L2_MEMORY_DMABUF;
 		buf.index = idx;
 
 		buf.m.planes[0].m.fd = hEnc->hBitStream[idx]->dmaFd;
@@ -620,7 +623,7 @@ int32_t NX_V4l2EncEncodeFrame(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_IN *pEncIn, NX_
 		if (buf.reserved == V4L2_BUF_FLAG_KEYFRAME)
 			pEncOut->frameType = PIC_TYPE_I;
 		else if (buf.reserved == V4L2_BUF_FLAG_PFRAME)
-			pEncOut->frameType = PIC_TYPE_P;
+			pEncOut->frameType = (pEncIn->forcedSkipFrame == 0) ? (PIC_TYPE_P) : (PIC_TYPE_SKIP);
 		else if (buf.reserved == V4L2_BUF_FLAG_BFRAME)
 			pEncOut->frameType = PIC_TYPE_B;
 		else
