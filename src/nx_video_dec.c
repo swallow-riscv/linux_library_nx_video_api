@@ -8,7 +8,7 @@
  *  FOR A PARTICULAR PURPOSE.
  *
  *	File		: nx_video_api.c
- *	Brief		: V4L2 Video En/Decoder
+ *	Brief		: V4L2 Video Decoder
  *	Author		: SungWon Jo (doriya@nexell.co.kr)
  *	History		: 2016.04.25 : Create
  */
@@ -29,6 +29,7 @@
 #include <nx_video_alloc.h>
 #include <nx_video_api.h>
 
+
 /*----------------------------------------------------------------------------*/
 #define NX_V4L2_DEC_NAME		"nx-vpu-dec"
 #define VIDEODEV_MINOR_MAX		63
@@ -41,17 +42,27 @@ struct NX_V4L2DEC_INFO {
 	int32_t width;
 	int32_t height;
 
-	int32_t 	useExternalFrameBuffer;
-	int32_t 	numFrameBuffers;
+	int32_t useExternalFrameBuffer;
+	int32_t numFrameBuffers;
 	NX_VID_MEMORY_HANDLE hImage[MAX_FRAME_BUFFER_NUM];
 
 	NX_MEMORY_HANDLE hStream[STREAM_BUFFER_NUM];
+
+	/* Initialize Output Information	*/
+	uint8_t pSeqData[1024];	/* SPS PPS (H.264) or Decoder Specific Information(for MPEG4) */
+	int32_t seqDataSize;
 
 	IMG_DISP_INFO dispInfo;
 
 	int32_t planesNum;
 
 	int32_t frameCnt;
+
+	/* For MPEG4 */
+	int vopTimeBits;
+
+	/* For VC1 */
+	int32_t iInterlace;
 };
 
 
@@ -120,6 +131,463 @@ static int32_t V4l2DecOpen(void)
 }
 
 
+#ifndef MKTAG
+#define MKTAG(a,b,c,d) (a | (b << 8) | (c << 16) | (d << 24))
+#endif
+
+#ifndef PUT_LE32
+#define PUT_LE32(_p, _var) \
+	*_p++ = (uint8_t)((_var) >> 0); \
+	*_p++ = (uint8_t)((_var) >> 8); \
+	*_p++ = (uint8_t)((_var) >> 16); \
+	*_p++ = (uint8_t)((_var) >> 24);
+#endif
+
+#ifndef PUT_BE32
+#define PUT_BE32(_p, _var) \
+	*_p++ = (uint8_t)((_var) >> 24); \
+	*_p++ = (uint8_t)((_var) >> 16); \
+	*_p++ = (uint8_t)((_var) >> 8); \
+	*_p++ = (uint8_t)((_var) >> 0);
+#endif
+
+#ifndef PUT_LE16
+#define PUT_LE16(_p, _var) \
+	*_p++ = (uint8_t)((_var) >> 0); \
+	*_p++ = (uint8_t)((_var) >> 8);
+#endif
+
+#ifndef PUT_BE16
+#define PUT_BE16(_p, _var) \
+	*_p++ = (uint8_t)((_var) >> 8); \
+	*_p++ = (uint8_t)((_var) >> 0);
+#endif
+
+
+typedef struct {
+	uint32_t			dwUsedBits;
+	uint8_t				*pbyStart;
+	uint32_t			dwPktSize;
+} VLD_STREAM;
+
+static int32_t vld_count_leading_zero(uint32_t dwWord)
+{
+	int32_t iLZ = 0;
+
+	if ((dwWord >> (32 - 16)) == 0)
+		iLZ = 16;
+	if ((dwWord >> (32 - 8 - iLZ)) == 0)
+		iLZ += 8;
+	if ((dwWord >> (32 - 4 - iLZ)) == 0)
+		iLZ += 4;
+	if ((dwWord >> (32 - 2 - iLZ)) == 0)
+		iLZ += 2;
+	if ((dwWord >> (32 - 1 - iLZ)) == 0)
+		iLZ += 1;
+
+	return iLZ;
+}
+
+static uint32_t vld_show_bits(VLD_STREAM *pstVldStm, int32_t iBits)
+{
+	uint32_t dwUsedBits = pstVldStm->dwUsedBits;
+	int32_t iBitCnt = 8 - (dwUsedBits & 0x7);
+	uint8_t *pbyRead = (uint8_t *)pstVldStm->pbyStart + (dwUsedBits >> 3);
+	uint32_t dwRead;
+
+	dwRead = *pbyRead++ << 24;
+	if (iBits > iBitCnt) 
+	{
+		dwRead += *pbyRead++ << 16;
+		if (iBits > iBitCnt + 8)
+		{
+			dwRead += *pbyRead++ << 8;
+			if (iBits > iBitCnt + 16)
+				dwRead  += *pbyRead++;
+		}
+	}
+
+	return (dwRead << (8 - iBitCnt)) >> (32 - iBits);
+}
+
+static uint32_t vld_get_bits(VLD_STREAM *pstVldStm, int32_t iBits)
+{
+	uint32_t dwUsedBits = pstVldStm->dwUsedBits;
+	int32_t iBitCnt = 8 - (dwUsedBits & 0x7);
+	uint8_t *pbyRead = (uint8_t *)pstVldStm->pbyStart + (dwUsedBits >> 3);
+	uint32_t dwRead;
+
+	pstVldStm->dwUsedBits += iBits;
+
+	dwRead = *pbyRead++ << 24;
+	if (iBits > iBitCnt)
+	{
+		dwRead += *pbyRead++ << 16;
+		if (iBits > iBitCnt + 8)
+		{
+			dwRead += *pbyRead++ << 8;
+			if (iBits > iBitCnt + 16)
+				dwRead += *pbyRead++;
+		}
+	}
+
+	return (dwRead << (8 - iBitCnt)) >> (32 - iBits);
+}
+
+static void vld_flush_bits(VLD_STREAM *pstVldStm, int iBits)
+{
+	pstVldStm->dwUsedBits += iBits;
+}
+
+static uint32_t vld_get_uev(VLD_STREAM *pstVldStm)
+{
+	int32_t iLZ = vld_count_leading_zero(vld_show_bits(pstVldStm, 32));
+
+	vld_flush_bits(pstVldStm, iLZ);
+	return (vld_get_bits(pstVldStm, iLZ + 1) - 1);
+}
+
+static void Mp4DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, uint8_t *pbyStream, int32_t iStreamSize)
+{
+	uint8_t *pbyStrm = pbyStream;
+	uint32_t uPreFourByte = (uint32_t)-1;
+
+	hDec->vopTimeBits = 0;
+
+	do
+	{
+		if (pbyStrm >= (pbyStream + iStreamSize))
+			break;
+
+		uPreFourByte = (uPreFourByte << 8) + *pbyStrm++;
+
+		if (uPreFourByte >= 0x00000120 && uPreFourByte <= 0x0000012F)
+		{
+			VLD_STREAM stStrm = { 0, pbyStrm, iStreamSize };
+			int32_t i;
+
+			vld_flush_bits(&stStrm, 1 + 8);						/* random_accessible_vol, video_object_type_indication */
+			if (vld_get_bits(&stStrm, 1))						/* is_object_layer_identifier */
+				vld_flush_bits(&stStrm, 4 + 3);					/* video_object_layer_verid, video_object_layer_priority */
+
+			if (vld_get_bits(&stStrm, 4) == 0xF)				/* aspect_ratio_info */
+				vld_flush_bits(&stStrm, 8 + 8);					/* par_width, par_height */
+
+			if (vld_get_bits(&stStrm, 1))						/* vol_control_parameters */
+			{
+				if (vld_get_bits(&stStrm, 2 + 1 + 1) & 1)		/* chroma_format, low_delay, vbv_parameters */
+				{
+					vld_flush_bits(&stStrm, 15 + 1);			/* first_half_bit_rate, marker_bit */
+					vld_flush_bits(&stStrm, 15 + 1);			/* latter_half_bit_rate, marker_bit */
+					vld_flush_bits(&stStrm, 15 + 1);			/* first_half_vbv_buffer_size, marker_bit */
+					vld_flush_bits(&stStrm, 3 + 11 + 1);		/* latter_half_vbv_buffer_size, first_half_vbv_occupancy, marker_bit */
+					vld_flush_bits(&stStrm, 15 + 1);			/* latter_half_vbv_occupancy, marker_bit */
+				}
+			}
+
+			vld_flush_bits(&stStrm, 2 + 1);						/* video_object_layer_shape, marker_bit */
+
+			for (i = 0 ; i < 16 ; i++)							/* vop_time_increment_resolution */
+				if (vld_get_bits(&stStrm, 1))
+					break;
+			hDec->vopTimeBits = 16 - i;
+			break;
+		}
+	} while(1);
+}
+
+static int32_t Mp4DecParseFrameHeader(NX_V4L2DEC_HANDLE hDec, uint8_t *pbyStream, int32_t iStreamSize)
+{
+	VLD_STREAM stStrm = { 0, pbyStream, iStreamSize };
+	int32_t iSize = iStreamSize;
+
+	if (vld_get_bits(&stStrm, 32) == 0x000001B6)
+	{
+		vld_flush_bits(&stStrm, 2);								/* vop_coding_type */
+	
+		do
+		{
+			if (vld_get_bits(&stStrm, 1) == 0)
+				break;
+		} while (stStrm.dwUsedBits < ((uint32_t)iStreamSize << 3));
+		
+		vld_flush_bits(&stStrm, 1 + hDec->vopTimeBits + 1);		/* marker_bits, vop_time_increment, marker_bits */
+
+		if (vld_get_bits(&stStrm, 1) == 0)						/* vop_coded */
+			iSize = 0;
+	}
+
+	return iSize;
+}
+
+static int32_t GetSequenceHeader(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
+{
+	uint8_t *pbySrc = pSeqIn->seqBuf;
+	uint8_t *pbyDst = (uint8_t *)hDec->hStream[0]->pBuffer;
+	int32_t iSize = pSeqIn->seqSize;
+
+	switch (hDec->codecType)
+	{
+	case V4L2_PIX_FMT_H264:
+		if (pSeqIn->seqSize > 0)
+		{
+			memcpy(pbyDst, pbySrc, pSeqIn->seqSize);
+
+			if ((pbySrc[2] == 0) && (pbySrc[7] > 51))
+				pbyDst[7] = 51;
+			else if ((pbySrc[2] == 1) && (pbySrc[6] > 51))
+				pbyDst[6] = 51;
+			break;
+		}
+		else
+			return -1;
+
+	case V4L2_PIX_FMT_DIV3:
+		if (pSeqIn->seqSize == 0)
+		{
+			if ((pSeqIn->width > 0) && (pSeqIn->height > 0))
+			{
+				PUT_LE32(pbyDst, MKTAG('C', 'N', 'M', 'V'));
+				PUT_LE16(pbyDst, 0x00);							/* version */
+				PUT_LE16(pbyDst, 0x20);							/* length of header in bytes */
+				PUT_LE32(pbyDst, MKTAG('D', 'I', 'V', '3'));	/* codec FourCC */
+				PUT_LE16(pbyDst, pSeqIn->width);
+				PUT_LE16(pbyDst, pSeqIn->height);
+				PUT_LE32(pbyDst, 0);							/* frame rate */
+				PUT_LE32(pbyDst, 0);							/* time scale(?) */
+				PUT_LE32(pbyDst, 0);							/* number of frames in file */
+				PUT_LE32(pbyDst, 0);							/* unused */
+				iSize += 32;
+			}
+			else
+				return -1;
+		}
+		else
+		{
+			PUT_BE32(pbyDst, pSeqIn->seqSize);
+			iSize += 4;
+			memcpy(pbyDst, pbyDst, pSeqIn->seqSize);
+		}
+		break;
+
+	case V4L2_PIX_FMT_WMV9:
+		if ((pSeqIn->seqSize > 0) && (pSeqIn->width > 0) && (pSeqIn->height > 0))
+		{
+#ifdef RCV_V2
+			PUT_LE32(pbyDst, (0xC5 << 24) | 0x00);				/* version */
+#else
+			/* RCV_V1 */
+			PUT_LE32(pbyDst, (0x85 << 24) | 0x00);
+#endif
+
+			PUT_LE32(pbyDst, pSeqIn->seqSize);
+			memcpy(pbyDst, pbySrc, pSeqIn->seqSize);
+			pbyDst += pSeqIn->seqSize;
+			PUT_LE32(pbyDst, pSeqIn->height);
+			PUT_LE32(pbyDst, pSeqIn->width);
+			iSize += 16;
+#ifdef RCV_V2
+			PUT_LE32(pbyDst, 12);
+			/* STRUCT_B_FRIST (LEVEL:3|CBR:1:RESERVE:4:HRD_BUFFER|24) */
+			PUT_LE32(pbyDst, 2 << 29 | 1 << 28 | 0x80 << 24 | 1 << 0);
+			PUT_LE32(pbyDst, 0);								/* bitrate */
+			PUT_LE32(pbyDst, 0);								/* framerate */
+			iSize += 16;
+#endif
+			break;
+		}
+		else
+			return -1;
+
+	case V4L2_PIX_FMT_RV8:
+	case V4L2_PIX_FMT_RV9:
+		if ((pSeqIn->seqSize > 0) && (pSeqIn->width > 0) && (pSeqIn->height > 0))
+		{
+			iSize += 26;
+
+			PUT_BE32(pbyDst, iSize);							/* Length */
+			PUT_LE32(pbyDst, MKTAG('V', 'I', 'D', 'O'));		/* MOFTag */
+
+			if (hDec->codecType == V4L2_PIX_FMT_RV8)
+			{
+				PUT_LE32(pbyDst, MKTAG('R','V','3','0'));
+			}
+			else
+			{
+				PUT_LE32(pbyDst, MKTAG('R','V','4','0'));				
+			}
+			
+			PUT_BE16(pbyDst, pSeqIn->width);
+			PUT_BE16(pbyDst, pSeqIn->height);
+			PUT_BE16(pbyDst, 0x0c);								/* BitCount */
+			PUT_BE16(pbyDst, 0x00);								/* PadWidth */
+			PUT_BE16(pbyDst, 0x00);								/* PadHeight */
+			PUT_LE32(pbyDst, 0);								/* framerate */
+			memcpy(pbyDst, pbySrc, pSeqIn->seqSize);
+			break;
+		}
+		else
+			return -1;
+
+	case V4L2_PIX_FMT_VP8:
+		if ((pSeqIn->seqSize > 0) && (pSeqIn->width > 0) && (pSeqIn->height > 0))
+		{
+			PUT_LE32(pbyDst, MKTAG('D', 'K', 'I', 'F'));		/* signature 'DKIF' */
+			PUT_LE16(pbyDst, 0x00);								/* version */
+			PUT_LE16(pbyDst, 0x20);								/* length of header in bytes */
+			PUT_LE32(pbyDst, MKTAG('V', 'P', '8', '0'));		/* codec FourCC */
+			PUT_LE16(pbyDst, pSeqIn->width);					/* width */
+			PUT_LE16(pbyDst, pSeqIn->height);					/* height */
+			PUT_LE32(pbyDst, 0);								/* frame rate */
+			PUT_LE32(pbyDst, 0);								/* time scale(?) */
+			PUT_LE32(pbyDst, 0);								/* number of frames in file */
+			PUT_LE32(pbyDst, 0);								/* unused */
+			iSize += 32;
+
+			PUT_LE32(pbyDst, pSeqIn->seqSize);
+			PUT_LE32(pbyDst, 0);
+			PUT_LE32(pbyDst, 0);
+			memcpy(pbyDst, pbySrc, pSeqIn->seqSize);
+			iSize += 12;
+			break;
+		}
+		else
+			return -1;
+
+	case V4L2_PIX_FMT_XVID:
+	case V4L2_PIX_FMT_DIVX:
+	case V4L2_PIX_FMT_DIV4:
+	case V4L2_PIX_FMT_DIV5:
+	case V4L2_PIX_FMT_DIV6:
+	case V4L2_PIX_FMT_MPEG4:
+		Mp4DecParseVideoCfg(hDec, pbySrc, pSeqIn->seqSize);
+
+	default:
+		if (pSeqIn->seqSize > 0)
+			memcpy(pbyDst, pbySrc, pSeqIn->seqSize);
+		else
+			return -1;
+	}
+	
+	return iSize;
+}
+
+static int32_t GetFrameStream(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, int32_t *idx)
+{
+	int32_t iSize = pDecIn->strmSize;
+	uint8_t *pbySrc = pDecIn->strmBuf;
+	uint8_t *pbyDst;
+
+	if (iSize <= 0)
+		return 0;
+
+	*idx = hDec->frameCnt % STREAM_BUFFER_NUM;
+	pbyDst = (uint8_t *)hDec->hStream[*idx]->pBuffer;
+
+	switch (hDec->codecType)
+	{
+	case V4L2_PIX_FMT_H264:
+		memcpy(pbyDst, pbySrc, iSize);
+		if (iSize > 8)
+		{
+			if ((pbySrc[2] == 0) && ((pbySrc[4] & 0x1F) == 7) && (pbySrc[7] > 51))
+				pbyDst[7] = 51;
+			else if ((pbySrc[2] == 1) && ((pbySrc[3] & 0x1F) == 7) && (pbySrc[6] > 51))
+				pbyDst[6] = 51;
+		}
+		break;
+
+	case V4L2_PIX_FMT_WVC1:
+		/* check start code as prefix (0x00, 0x00, 0x01) */
+		if (pbySrc[0] != 0 || pbySrc[1] != 0 || pbySrc[2] != 1)
+		{
+			*pbyDst++ = 0x00;
+			*pbyDst++ = 0x00;
+			*pbyDst++ = 0x01;
+			*pbyDst++ = 0x0D;
+			memcpy(pbyDst, pbySrc, iSize);
+			iSize += 4;
+		}
+		else
+		{
+			/* no extra header size, there is start code in input stream */
+			memcpy(pbyDst, pbySrc, iSize);
+		}
+		break;
+
+	case V4L2_PIX_FMT_WMV9:
+		PUT_LE32(pbyDst, iSize | 0);							/* Key Frame = 0x80000000 */
+		iSize += 4;
+
+#ifdef RCV_V2
+		PUT_LE32(pbyDst, 0);
+		iSize += 4;
+#endif
+
+		memcpy(pbyDst, pbySrc, pDecIn->strmSize);
+		break;
+
+	case V4L2_PIX_FMT_RV8:
+	case V4L2_PIX_FMT_RV9:
+		{
+			int32_t cSlice, nSlice;
+			int32_t i, val, offset;
+
+			cSlice = pbySrc[0] + 1;
+			nSlice = iSize -1 -(cSlice * 8);
+
+			PUT_BE32(pbyDst, nSlice);
+			PUT_LE32(pbyDst, 0);
+			PUT_BE16(pbyDst, 0);								/* frame number */
+			PUT_BE16(pbyDst, 0x02);								/* Flags */
+			PUT_BE32(pbyDst, 0x00);								/* LastPacket */
+			PUT_BE32(pbyDst, cSlice);							/* NumSegments */
+
+			offset = 1;
+			for (i = 0 ; i < cSlice ; i++)
+			{
+				val = (pbySrc[offset+3] << 24) | (pbySrc[offset+2] << 16) | (pbySrc[offset+1] << 8) | pbySrc[offset];
+				PUT_BE32(pbyDst, val);							/* isValid */
+				offset += 4;
+				val = (pbySrc[offset+3] << 24) | (pbySrc[offset+2] << 16) | (pbySrc[offset+1] << 8) | pbySrc[offset];
+				PUT_BE32(pbyDst, val);							/* Offset */
+				offset += 4;
+			}
+
+			memcpy(pbyDst, pbySrc + (1 + (cSlice * 8)), nSlice);
+			iSize = 20 + (cSlice * 8) + nSlice;
+		}
+		break;
+
+	case V4L2_PIX_FMT_DIV3:
+	case V4L2_PIX_FMT_VP8:
+		PUT_LE32(pbyDst, iSize);
+		PUT_LE32(pbyDst, 0);
+		PUT_LE32(pbyDst, 0);
+		memcpy(pbyDst, pbySrc, iSize);
+		iSize += 12;
+		break;
+
+	case V4L2_PIX_FMT_XVID:
+	case V4L2_PIX_FMT_DIVX:
+	case V4L2_PIX_FMT_DIV4:
+	case V4L2_PIX_FMT_DIV5:
+	case V4L2_PIX_FMT_DIV6:
+	case V4L2_PIX_FMT_MPEG4:
+		/* For PB Frame */
+		if (hDec->vopTimeBits > 0)
+		{
+			iSize = Mp4DecParseFrameHeader(hDec, pbySrc, iSize);
+		}
+
+	default:
+		memcpy((void *)pbyDst, (void *)pbySrc, iSize);
+	}
+
+	return iSize;
+}
+
+
 /*
  *		V4L2 Decoder
  */
@@ -156,7 +624,7 @@ NX_V4L2DEC_HANDLE NX_V4l2DecOpen(uint32_t codecType)
 	return hDec;
 
 ERROR_EXIT:
-	if(hDec)
+	if (hDec)
 		free(hDec);
 
 	return NULL;
@@ -165,7 +633,6 @@ ERROR_EXIT:
 /*----------------------------------------------------------------------------*/
 int32_t NX_V4l2DecClose(NX_V4L2DEC_HANDLE hDec)
 {
-	enum v4l2_buf_type type;
 	int32_t ret = 0, i;
 
 	if (NULL == hDec)
@@ -174,18 +641,27 @@ int32_t NX_V4l2DecClose(NX_V4L2DEC_HANDLE hDec)
 		return -1;
 	}
 
-	type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-	if (ioctl(hDec->fd, VIDIOC_STREAMOFF, &type) != 0)
 	{
-		printf("failed to ioctl: VIDIOC_STREAMOFF(Stream)\n");
-		return -1;
-	}
+		enum v4l2_buf_type type;
+		
+		type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
+		if (ioctl(hDec->fd, VIDIOC_STREAMOFF, &type) != 0)
+		{
+			printf("failed to ioctl: VIDIOC_STREAMOFF(Stream)\n");
+			return -1;
+		}
 
-	type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	if (ioctl(hDec->fd, VIDIOC_STREAMOFF, &type) != 0)
-	{
-		printf("failed to ioctl: VIDIOC_STREAMOFF(Image)\n");
-		return -1;
+		type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+		if (ioctl(hDec->fd, VIDIOC_STREAMOFF, &type) != 0)
+		{
+			printf("failed to ioctl: VIDIOC_STREAMOFF(Image)\n");
+			return -1;
+		}
+
+		for (i=0 ; i<STREAM_BUFFER_NUM ; i++)
+			NX_FreeMemory(hDec->hStream[i]);
+
+		close(hDec->fd);
 	}
 
 	if (hDec->useExternalFrameBuffer == 0)
@@ -200,11 +676,6 @@ int32_t NX_V4l2DecClose(NX_V4L2DEC_HANDLE hDec)
 		}
 	}
 
-	for (i=0 ; i<STREAM_BUFFER_NUM ; i++)
-		NX_FreeMemory(hDec->hStream[i]);
-
-	close(hDec->fd);
-
 	free(hDec);
 
 	return ret;
@@ -213,9 +684,8 @@ int32_t NX_V4l2DecClose(NX_V4L2DEC_HANDLE hDec)
 /*----------------------------------------------------------------------------*/
 int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn, NX_V4L2DEC_SEQ_OUT *pSeqOut)
 {
-	int imgWidth = pSeqIn->width;
-	int imgHeight = pSeqIn->height;
-	int i;
+	int32_t imgWidth = pSeqIn->width;
+	int32_t imgHeight = pSeqIn->height;
 
 	memset(pSeqOut, 0, sizeof(NX_V4L2DEC_SEQ_OUT));
 
@@ -225,7 +695,10 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		return -1;
 	}
 
-	// Set Stream Formet
+	hDec->seqDataSize = (pSeqIn->seqSize < 1024) ? (pSeqIn->seqSize) : (1024);
+	memcpy(hDec->pSeqData, pSeqIn->seqBuf, hDec->seqDataSize);
+
+	/* Set Stream Formet */
 	{
 		struct v4l2_format fmt;
 
@@ -250,16 +723,16 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		}
 	}
 
-	// Malloc Stream Buffer
+	/* Malloc Stream Buffer */
 	{
 		struct v4l2_requestbuffers req;
-		int32_t buffCnt = STREAM_BUFFER_NUM;
+		int32_t i, buffCnt = STREAM_BUFFER_NUM;
 
-		// IOCTL : VIDIOC_REQBUFS For Input Stream
+		/* IOCTL : VIDIOC_REQBUFS For Input Stream */
 		memset(&req, 0, sizeof(req));
 		req.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		req.count = buffCnt;
-		req.memory = V4L2_MEMORY_DMABUF;//V4L2_MEMORY_USERPTR;
+		req.memory = V4L2_MEMORY_DMABUF;
 
 		if (ioctl(hDec->fd, VIDIOC_REQBUFS, &req) != 0)
 		{
@@ -284,7 +757,7 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		}
 	}
 
-	// Set Parameter
+	/* Set Parameter */
 	{
 		if (hDec->codecType == V4L2_PIX_FMT_MJPEG)
 		{
@@ -301,25 +774,30 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		}
 	}
 
-	// Parser Sequence Header
+	/* Parser Sequence Header */
 	{
 		struct v4l2_plane planes[1];
 		struct v4l2_buffer buf;
 		enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
+		int32_t iSeqSize = GetSequenceHeader(hDec, pSeqIn);
 
-		memcpy((void *)hDec->hStream[0]->pBuffer, pSeqIn->seqBuf, pSeqIn->seqSize);
+		if (iSeqSize <= 0)
+		{
+			printf("Fail, input data has error!!");
+			return -1;
+		}
 
 		memset(&buf, 0, sizeof(buf));
 		buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		buf.m.planes = planes;
 		buf.length = 1;
-		buf.memory = V4L2_MEMORY_DMABUF;//V4L2_MEMORY_USERPTR;
+		buf.memory = V4L2_MEMORY_DMABUF;
 		buf.index = 0;
 
 		buf.m.planes[0].m.userptr = (unsigned long)hDec->hStream[0]->pBuffer;
 		buf.m.planes[0].m.fd = hDec->hStream[0]->dmaFd;
 		buf.m.planes[0].length = hDec->hStream[0]->size;
-		buf.m.planes[0].bytesused = pSeqIn->seqSize;
+		buf.m.planes[0].bytesused = iSeqSize;
 		buf.m.planes[0].data_offset = 0;
 
 		buf.timestamp.tv_sec = pSeqIn->timeStamp/1000;
@@ -340,7 +818,7 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		buf.m.planes = planes;
 		buf.length = 1;
-		buf.memory = V4L2_MEMORY_DMABUF;//V4L2_MEMORY_USERPTR;
+		buf.memory = V4L2_MEMORY_DMABUF;
 
 		if (ioctl(hDec->fd, VIDIOC_DQBUF, &buf) != 0)
 		{
@@ -429,7 +907,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 		if (pSeqIn->pMemHandle == NULL)
 		{
 			hDec->useExternalFrameBuffer = false;
- 			imgBuffCnt = hDec->numFrameBuffers + pSeqIn->numBuffers;
+			imgBuffCnt = hDec->numFrameBuffers + pSeqIn->numBuffers;
 		}
 		else
 		{
@@ -512,7 +990,8 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 {
 	struct v4l2_buffer buf;
 	struct v4l2_plane planes[3];
-	int idx = hDec->frameCnt % STREAM_BUFFER_NUM;
+	int idx;
+	int32_t iStrmSize;
 
 	if (NULL == hDec)
 	{
@@ -520,24 +999,23 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 		return -1;
 	}
 
-	/* Ready Input Stream */
-	memcpy((void *)hDec->hStream[idx]->pBuffer, pDecIn->strmBuf, pDecIn->strmSize);
+	iStrmSize = GetFrameStream(hDec, pDecIn, &idx);
 
 	/* Queue Input Buffer */
 	memset(&buf, 0, sizeof(buf));
-	buf.type	 = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
+	buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 	buf.m.planes = planes;
 	buf.length = 1;
 	buf.memory = V4L2_MEMORY_DMABUF;
 	buf.index = idx;
-	buf.timestamp.tv_sec	= pDecIn->timeStamp/1000;
-	buf.timestamp.tv_usec	= (pDecIn->timeStamp % 1000) * 1000;
+	buf.timestamp.tv_sec = pDecIn->timeStamp/1000;
+	buf.timestamp.tv_usec = (pDecIn->timeStamp % 1000) * 1000;
 	buf.flags = pDecIn->eos ? 1 : 0;
 
-	// buf.m.planes[0].m.userptr = (unsigned long)hStream->pBuffer;
+	/* buf.m.planes[0].m.userptr = (unsigned long)hStream->pBuffer; */
 	buf.m.planes[0].m.fd = hDec->hStream[idx]->dmaFd;
 	buf.m.planes[0].length = hDec->hStream[idx]->size;
-	buf.m.planes[0].bytesused = pDecIn->strmSize;
+	buf.m.planes[0].bytesused = iStrmSize;
 	buf.m.planes[0].data_offset = 0;
 
 	if (ioctl(hDec->fd, VIDIOC_QBUF, &buf) != 0)
@@ -564,7 +1042,7 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 		pDecOut->decIdx = buf.index;
 		pDecOut->usedByte = buf.bytesused;
 		pDecOut->outFrmReliable_0_100[DECODED_FRAME] = buf.reserved;
-		pDecOut->timeStamp[DECODED_FRAME] = ((uint64_t)buf.timestamp.tv_sec)*1000 + buf.timestamp.tv_usec/1000;
+		pDecOut->timeStamp[DECODED_FRAME] = ((uint64_t)buf.timestamp.tv_sec) * 1000 + buf.timestamp.tv_usec / 1000;
 
 		if (buf.reserved2 == V4L2_BUF_FLAG_KEYFRAME)
 			pDecOut->picType[DECODED_FRAME] = PIC_TYPE_I;
@@ -602,12 +1080,12 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 	if (pDecOut->dispIdx >= 0)
 	{
 		pDecOut->hImg = *hDec->hImage[buf.index];
-		pDecOut->timeStamp[DISPLAY_FRAME] = ((uint64_t)buf.timestamp.tv_sec)*1000 + buf.timestamp.tv_usec/1000;
+		pDecOut->timeStamp[DISPLAY_FRAME] = ((uint64_t)buf.timestamp.tv_sec) * 1000 + buf.timestamp.tv_usec / 1000;
 		pDecOut->outFrmReliable_0_100[DISPLAY_FRAME] = buf.reserved;
 
 		if (buf.reserved2 == V4L2_BUF_FLAG_KEYFRAME)
 			pDecOut->picType[DISPLAY_FRAME] = PIC_TYPE_I;
-		else if	(buf.reserved2 == V4L2_BUF_FLAG_PFRAME)
+		else if (buf.reserved2 == V4L2_BUF_FLAG_PFRAME)
 			pDecOut->picType[DISPLAY_FRAME] = PIC_TYPE_P;
 		else if (buf.reserved2 == V4L2_BUF_FLAG_BFRAME)
 			pDecOut->picType[DISPLAY_FRAME] = PIC_TYPE_B;
@@ -671,11 +1149,11 @@ int32_t NX_V4l2DecClrDspFlag(NX_V4L2DEC_HANDLE hDec, NX_VID_MEMORY_HANDLE hFrame
 	}
 
 	memset(&buf, 0, sizeof(buf));
-	buf.type	= V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	buf.index	= index;
-	buf.m.planes= planes;
-	buf.length	= hDec->planesNum;
-	buf.memory	= V4L2_MEMORY_DMABUF;
+	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	buf.index = index;
+	buf.m.planes = planes;
+	buf.length = hDec->planesNum;
+	buf.memory = V4L2_MEMORY_DMABUF;
 
 	for (i = 0; i < hDec->planesNum; i++)
 	{

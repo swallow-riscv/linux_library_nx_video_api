@@ -173,37 +173,41 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 
 		seqIn.width = imgWidth;
 		seqIn.height = imgHeight;
+
+		if (v4l2CodecType == V4L2_PIX_FMT_MJPEG)
+			seqIn.thumbnailMode = 0;
 	
 		// Sequence Header Parser
 		seqIn.seqSize = pMediaReader->GetVideoSeqInfo(streamBuffer);
+		seqIn.seqBuf = streamBuffer;
 
-		if (seqIn.seqSize == 0)
-		{
-			int64_t timeStamp = -1;
-			pMediaReader->ReadStream(CMediaReader::MEDIA_TYPE_VIDEO, streamBuffer, &seqIn.seqSize, NULL, &timeStamp);
-			seqIn.timeStamp = timeStamp;
-			seqflg = 1;
-		}
-		else if (v4l2CodecType == V4L2_PIX_FMT_VP8)
+		if (v4l2CodecType == V4L2_PIX_FMT_VP8)
 		{
 			// CnM Specific Code
 			int64_t timeStamp = -1;
 			int32_t size = 0;
-			pMediaReader->ReadStream(CMediaReader::MEDIA_TYPE_VIDEO, streamBuffer + seqIn.seqSize, &size, NULL, &timeStamp);
+			pMediaReader->ReadStream(CMediaReader::MEDIA_TYPE_VIDEO, streamBuffer + seqIn.seqSize, &seqIn.seqSize, NULL, &timeStamp);
 			seqIn.timeStamp = timeStamp;
 			seqIn.seqSize = size + seqIn.seqSize;
 			seqflg = 1;
 		}
-		seqIn.seqBuf = streamBuffer;
-
-		if (v4l2CodecType == V4L2_PIX_FMT_MJPEG)
-			seqIn.thumbnailMode = 0;
 
 		ret = NX_V4l2DecParseVideoCfg(hDec, &seqIn, &seqOut);
+		if ((ret < 0) && (seqIn.seqSize == 0))
+		{
+			int64_t timeStamp = -1;
+
+			pMediaReader->ReadStream(CMediaReader::MEDIA_TYPE_VIDEO, streamBuffer, &seqIn.seqSize, NULL, &timeStamp);
+			seqIn.timeStamp = timeStamp;
+			seqflg = 1;
+
+			ret = NX_V4l2DecParseVideoCfg(hDec, &seqIn, &seqOut);
+		}
+
 		if (ret < 0)
 		{
 			printf("Fail, NX_V4l2DecParseVideoCfg()\n");
-			goto DEC_TERMINATE;			
+			goto DEC_TERMINATE;
 		}
 
 		seqIn.width = seqOut.width;
@@ -277,7 +281,7 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 			startTime = NX_GetTickCount();
 			ret = NX_V4l2DecDecodeFrame(hDec, &decIn, &decOut);
 			endTime = NX_GetTickCount();
-			totalTime += (endTime - startTime);			
+			totalTime += (endTime - startTime);
 
 			printf("[%5d Frm]Size=%6d, DecIdx=%2d, DispIdx=%2d, InTimeStamp=%7lu, outTimeStamp=%7lu, Time=%6lu, interlace=%1d %1d, Reliable=%3d, %3d, type = %d, %d, UsedByte=%5d\n",
 				frmCnt, size, decOut.decIdx, decOut.dispIdx, timeStamp, decOut.timeStamp[DISPLAY_FRAME], (endTime - startTime), decOut.interlace[DECODED_FRAME], decOut.interlace[DISPLAY_FRAME],
