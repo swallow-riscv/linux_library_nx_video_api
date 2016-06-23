@@ -832,6 +832,8 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 			pSeqOut->interlace = NONE_FIELD;
 		else if (V4L2_FIELD_INTERLACED)
 			pSeqOut->interlace = FIELD_INTERLACED;
+
+		hDec->iInterlace = pSeqOut->interlace;
 	}
 
 	/* Get Image Information */
@@ -1238,6 +1240,196 @@ int32_t NX_V4l2DecFlush(NX_V4L2DEC_HANDLE hDec)
 			}
 		}
 	}
+
+	return 0;
+}
+
+/* Optional Function */
+int32_t NX_DecGetFrameType(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, uint32_t codecType, int32_t *piFrameType)
+{
+	uint8_t *pbyStrm = pDecIn->strmBuf;
+	uint32_t uPreFourByte = (uint32_t)-1;
+	int32_t  iFrmType = PIC_TYPE_UNKNOWN;
+
+	if ((pbyStrm == NULL) || (piFrameType == NULL))
+		return -1;
+
+	if (!codecType)
+		codecType = hDec->codecType;
+
+	switch (codecType)
+	{
+	case V4L2_PIX_FMT_H264:
+		do
+		{
+			if (pbyStrm >= (pDecIn->strmBuf + pDecIn->strmSize))
+				return -1;
+
+			uPreFourByte = (uPreFourByte << 8) + *pbyStrm++;
+
+			if ((uPreFourByte == 0x00000001) || (uPreFourByte << 8 == 0x00000100))
+			{
+				int32_t iNaluType = pbyStrm[0] & 0x1F;
+
+				/* Slice start code */
+				if (iNaluType == 5)
+				{
+					iFrmType = PIC_TYPE_IDR;
+					break;
+				}
+				else if (iNaluType == 1)
+				{
+					VLD_STREAM stStrm = { 8, pbyStrm, pDecIn->strmSize };
+
+					vld_get_uev(&stStrm);						/* First_mb_in_slice */
+					iFrmType = vld_get_uev(&stStrm);			/* Slice type */
+
+					if (iFrmType == 0 || iFrmType == 5)
+						iFrmType = PIC_TYPE_P;
+					else if (iFrmType == 1 || iFrmType == 6)
+						iFrmType = PIC_TYPE_B;
+					else if (iFrmType == 2 || iFrmType == 7)
+						iFrmType = PIC_TYPE_I;
+					break;
+				}
+			}
+		} while(1);
+		break;
+
+	case V4L2_PIX_FMT_MPEG2:
+		do
+		{
+			if (pbyStrm >= (pDecIn->strmBuf + pDecIn->strmSize))
+				return -1;
+
+			uPreFourByte = (uPreFourByte << 8) + *pbyStrm++;
+
+			/* Picture start code */
+			if (uPreFourByte == 0x00000100)
+			{
+				VLD_STREAM stStrm = { 0, pbyStrm, pDecIn->strmSize };
+
+				vld_flush_bits(&stStrm, 10);					/* temporal_reference */
+				iFrmType = vld_get_bits(&stStrm, 3);			/* picture_coding_type */
+
+				if (iFrmType == 1)
+					iFrmType = PIC_TYPE_I;
+				else if (iFrmType == 2)
+					iFrmType = PIC_TYPE_P;
+				else if (iFrmType == 3)
+					iFrmType = PIC_TYPE_B;
+				break;
+			}
+		} while (1);
+		break;
+
+	case V4L2_PIX_FMT_WVC1:
+		if (hDec == NULL || hDec->seqDataSize == 0)
+			return -1;
+
+		{
+			VLD_STREAM stStrm = { 0, pbyStrm, pDecIn->strmSize };
+
+			if (hDec->iInterlace != NONE_FIELD)
+			{
+				/* FCM */
+				if (vld_get_bits(&stStrm, 1) == 1)
+					vld_flush_bits(&stStrm, 1);
+			}
+
+			iFrmType = vld_get_bits(&stStrm, 1);
+			if (iFrmType == 0)
+			{
+				iFrmType = PIC_TYPE_P;
+			}
+			else
+			{
+				iFrmType = vld_get_bits(&stStrm, 1);
+				if (iFrmType == 0)
+				{
+					iFrmType = PIC_TYPE_B;
+				}
+				else
+				{
+					iFrmType = vld_get_bits(&stStrm, 1);
+					if (iFrmType == 0)
+					{
+						iFrmType = PIC_TYPE_I;
+					}
+					else
+					{
+						iFrmType = vld_get_bits(&stStrm, 1);
+						if (iFrmType == 0)
+							iFrmType = PIC_TYPE_VC1_BI;
+						else
+							iFrmType = PIC_TYPE_SKIP;
+					}
+				}
+			}
+		}
+		break;
+
+	case V4L2_PIX_FMT_WMV9:
+		if (hDec == NULL || hDec->seqDataSize == 0)
+			return -1;
+
+		{
+			int32_t rangeRed;
+			int32_t fInterPFlag;
+			int32_t maxBframes;
+			VLD_STREAM stStrm = { 24, hDec->pSeqData, hDec->seqDataSize };
+
+			/* Parse Sequece Header */
+			rangeRed = vld_get_bits(&stStrm, 1);
+			maxBframes = vld_get_bits(&stStrm, 3);
+			vld_flush_bits(&stStrm, 2);
+			fInterPFlag = vld_get_bits(&stStrm, 1);
+
+			/* Parse Frame Header */
+			stStrm.dwUsedBits = 0;
+			stStrm.pbyStart = pbyStrm;
+			stStrm.dwPktSize = pDecIn->strmSize;
+
+			if (fInterPFlag == 1)
+				vld_flush_bits(&stStrm, 1);						/* INTERPFRM */
+
+			vld_flush_bits(&stStrm, 2);							/* FRMCNT */
+
+			if (rangeRed == 1)
+				vld_flush_bits(&stStrm, 1);						/* RANGEREDFRM */
+
+			iFrmType = vld_get_bits(&stStrm, 1);
+			if (maxBframes > 0)
+			{
+				if (iFrmType == 1)
+				{
+					iFrmType = PIC_TYPE_P;
+				}
+				else
+				{
+					iFrmType = vld_get_bits(&stStrm, 1);
+					if (iFrmType == 1)
+						iFrmType = PIC_TYPE_I;
+					else if (iFrmType == 0)
+						iFrmType = PIC_TYPE_B;					/* or BI */
+				}
+			}
+			else
+			{
+				if (iFrmType == 0)
+					iFrmType = PIC_TYPE_I;
+				else if (iFrmType == 1)
+					iFrmType = PIC_TYPE_P;
+			}
+
+		}
+		break;
+
+	default:
+		return -1;
+	}
+
+	*piFrameType = iFrmType;
 
 	return 0;
 }

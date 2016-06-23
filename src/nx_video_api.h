@@ -24,33 +24,32 @@ extern "C"{
 #endif
 
 #define MAX_FRAME_BUFFER_NUM		32
-#define MAX_IMAGE_WIDTH			1920
-#define MAX_IMAGE_HEIGHT		1088
+#define MAX_IMAGE_WIDTH				1920
+#define MAX_IMAGE_HEIGHT			1088
 
 
 typedef struct NX_V4L2ENC_INFO	*NX_V4L2ENC_HANDLE;
 typedef struct NX_V4L2DEC_INFO	*NX_V4L2DEC_HANDLE;
 
 enum {
-	PIC_TYPE_I			= 0,		/* Include  IDR in h264 */
+	PIC_TYPE_I			= 0,
 	PIC_TYPE_P			= 1,
 	PIC_TYPE_B			= 2,
+	PIC_TYPE_VC1_BI		= 3,
+	PIC_TYPE_SKIP		= 5,
+	PIC_TYPE_IDR		= 6,
 #if 0
 	/* TBD */
-	PIC_TYPE_VC1_BI			= 2,
-	PIC_TYPE_VC1_B			= 3,
+	PIC_TYPE_VC1_B		= 3,
 	PIC_TYPE_D			= 3,		/* D picture in mpeg2, and is only composed of DC codfficients */
 	PIC_TYPE_S			= 3,		/* S picture in mpeg4, and is an acronym of Sprite. and used for GMC */
-	PIC_TYPE_VC1_P_SKIP		= 4,
-	PIC_TYPE_MP4_P_SKIP_NOT_CODED	= 4,		/* Not Coded P Picture at mpeg4 packed mode */
-	PIC_TYPE_SKIP			= 5,
-	PIC_TYPE_IDR			= 6,
+	PIC_TYPE_MP4_P_SKIP_NOT_CODED	= 4,	/* Not Coded P Picture at mpeg4 packed mode */
 #endif
-	PIC_TYPE_UNKNOWN		= 0xff,
+	PIC_TYPE_UNKNOWN	= 0xff,
 };
 
 enum {
-	NONE_FIELD			= 0,
+	NONE_FIELD				= 0,
 	FIELD_INTERLACED		= 1,
 	TOP_FIELD_FIRST			= 2,
 	BOTTOM_FIELD_FIRST		= 3,
@@ -62,16 +61,16 @@ enum {
 };
 
 typedef enum {
-	VID_CHG_KEYFRAME		= (1 << 1),	/* Key frame interval */
-	VID_CHG_BITRATE			= (1 << 2),	/* Bit Rate */
-	VID_CHG_FRAMERATE		= (1 << 3),	/* Frame Rate */
-	VID_CHG_INTRARF			= (1 << 4),	/* Intra Refresh */
+	VID_CHG_KEYFRAME			= (1 << 1),	/* Key frame interval */
+	VID_CHG_BITRATE				= (1 << 2),	/* Bit Rate */
+	VID_CHG_FRAMERATE			= (1 << 3),	/* Frame Rate */
+	VID_CHG_INTRARF				= (1 << 4),	/* Intra Refresh */
 } VID_ENC_CHG_PARA_E;
 
 typedef struct {
-	uint32_t dispLeft;			/* Specifies the x-coordinate of the upper-left corner of the frame memory */
-	uint32_t dispTop;			/* Specifies the y-coordinate of the upper-left corner of the frame memory */
-	uint32_t dispRight;			/* Specifies the x-coordinate of the lower-right corner of the frame memory */
+	uint32_t dispLeft;				/* Specifies the x-coordinate of the upper-left corner of the frame memory */
+	uint32_t dispTop;				/* Specifies the y-coordinate of the upper-left corner of the frame memory */
+	uint32_t dispRight;				/* Specifies the x-coordinate of the lower-right corner of the frame memory */
 	uint32_t dispBottom;			/* Specifies the y-coordinate of the lower-right corner of the frame memory */
 } IMG_DISP_INFO;
 
@@ -138,11 +137,11 @@ typedef struct tNX_V4L2ENC_CHG_PARA {
 } NX_V4L2ENC_CHG_PARA;
 
 typedef struct tNX_V4L2DEC_SEQ_IN {
-	uint32_t imgFormat;			/* Fourcc for Decoded Image */
+	uint32_t imgFormat;				/* Fourcc for Decoded Image */
 	uint32_t imgPlaneNum;			/* Number of Input Image Plane */
 
-	uint8_t *seqBuf;			/* Sequence header's pointer */
-	int32_t seqSize;			/* Sequence header's size */
+	uint8_t *seqBuf;				/* Sequence header's pointer */
+	int32_t seqSize;				/* Sequence header's size */
 
 	uint64_t timeStamp;
 
@@ -152,15 +151,15 @@ typedef struct tNX_V4L2DEC_SEQ_IN {
 	/* for External Buffer(optional) */
 	NX_VID_MEMORY_HANDLE *pMemHandle;	/* Frame buffer for external buffer mode */
 
-	int32_t numBuffers;			/* Internal buffer mode : number of extra buffer */
-						/* External buffer mode : number of external frame buffer */
+	int32_t numBuffers;				/* Internal buffer mode : number of extra buffer */
+									/* External buffer mode : number of external frame buffer */
 
 	/* for JPEG Decoder */
 	int32_t thumbnailMode;			/* 0 : jpeg mode, 1 : thumbnail mode */
 } NX_V4L2DEC_SEQ_IN;
 
 typedef struct tNX_V4L2DEC_SEQ_OUT {
-	int32_t minBuffers;			/* Needed minimum number for decoder */
+	int32_t minBuffers;				/* Needed minimum number for decoder */
 	int32_t width;
 	int32_t height;
 	int32_t interlace;
@@ -168,7 +167,7 @@ typedef struct tNX_V4L2DEC_SEQ_OUT {
 	int32_t frameRateNum;			/* Frame Rate Numerator */
 	int32_t frameRateDen;			/* Frame Rate Denominator (-1 : no information) */
 
-	int32_t imgFourCC;			/* FourCC according to decoded image type */
+	int32_t imgFourCC;				/* FourCC according to decoded image type */
 	int32_t thumbnailWidth;			/* Width of thumbnail image */
 	int32_t thumbnailHeight;		/* Height of thumbnail image */
 
@@ -178,9 +177,9 @@ typedef struct tNX_V4L2DEC_SEQ_OUT {
 } NX_V4L2DEC_SEQ_OUT;
 
 typedef struct tNX_V4L2DEC_IN {
-	uint8_t *strmBuf;			/* A compressed stream's pointer */
-	int32_t strmSize;			/* A compressed stream's size */
-	uint64_t timeStamp;			/* Time stamp */
+	uint8_t *strmBuf;				/* A compressed stream's pointer */
+	int32_t strmSize;				/* A compressed stream's size */
+	uint64_t timeStamp;				/* Time stamp */
 	int32_t eos;
 
 	/* for JPEG Decoder */
@@ -192,11 +191,11 @@ typedef struct tNX_V4L2DEC_OUT {
 	NX_VID_MEMORY_INFO hImg;		/* Decoded frame's pointer */
 	IMG_DISP_INFO dispInfo;
 
-	int32_t decIdx;				/* Decode Index */
-	int32_t dispIdx;			/* Display Index */
+	int32_t decIdx;					/* Decode Index */
+	int32_t dispIdx;				/* Display Index */
 
 	uint32_t usedByte;
-	int32_t picType[2];			/* Picture Type */
+	int32_t picType[2];				/* Picture Type */
 	uint64_t timeStamp[2];			/* Time stamp */
 	int32_t interlace[2];
 	int32_t outFrmReliable_0_100[2];	/* Percentage of MB's are reliable ranging from 0[all damage] to 100 [all clear] */
@@ -224,6 +223,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn);
 int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_V4L2DEC_OUT *pDecOut);
 int32_t NX_V4l2DecClrDspFlag(NX_V4L2DEC_HANDLE hDec, NX_VID_MEMORY_HANDLE hFrameBuf, int32_t iFrameIdx);
 int32_t NX_V4l2DecFlush(NX_V4L2DEC_HANDLE hDec);
+int32_t NX_DecGetFrameType(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, uint32_t codecType, int32_t *piFrameType);
 
 
 #ifdef __cplusplus
