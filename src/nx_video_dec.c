@@ -1026,7 +1026,7 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 		return -1;
 	}
 
-	if (pDecIn->strmSize > 0)
+	if (iStrmSize > 0)
 	{
 		/* Dequeue Input ES Buffer -> Get Decoded Order Result */
 		memset(&buf, 0, sizeof(buf));
@@ -1061,6 +1061,10 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 			pDecOut->interlace[DECODED_FRAME] = TOP_FIELD_FIRST;
 		else if (buf.field == V4L2_FIELD_SEQ_BT)
 			pDecOut->interlace[DECODED_FRAME] = BOTTOM_FIELD_FIRST;
+	}
+	else if (pDecIn->strmSize > 0)
+	{
+		pDecOut->usedByte = pDecIn->strmSize;
 	}
 
 	/* Dequeue Output YUV Buffer -> Get Display Order Result */
