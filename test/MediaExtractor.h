@@ -73,8 +73,19 @@ public:
 	{
 		if( m_VideoStream )
 		{
-			*width = m_VideoStream->codec->coded_width;
-			*height = m_VideoStream->codec->coded_height;
+			*width = m_VideoStream->codec->width;
+			*height = m_VideoStream->codec->height;
+
+			if( m_VideoStream->codec->coded_width != m_VideoStream->codec->width ||
+				m_VideoStream->codec->coded_height != m_VideoStream->codec->height )
+			{
+				printf("resolution( %d x %d ), coded resolution( %d x %d)\n",
+					m_VideoStream->codec->width,
+					m_VideoStream->codec->height,
+					m_VideoStream->codec->coded_width,
+					m_VideoStream->codec->coded_height );
+			}
+
 			return true;
 		}
 		return false;
