@@ -47,7 +47,9 @@
 
 //#define ENABLE_CBCR_INTERLEAVE
 
-#define IMG_PLANE_NUM	(1)
+#define IMG_PLANE_NUM	1
+#define PLANE_ID		26
+#define CRTC_ID			31
 
 static bool bExitLoop = false;
 
@@ -116,9 +118,7 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 #ifdef ENABLE_DRM_DISPLAY
 		hDsp = CreateDrmDisplay(drmFd);
 		DRM_RECT srcRect, dstRect;
-#endif	//	ENABLE_DRM_DISPLAY
 
-#ifdef ENABLE_DRM_DISPLAY
 		srcRect.x = 0;
 		srcRect.y = 0;
 		srcRect.width = imgWidth;
@@ -146,7 +146,7 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 		}
 #endif
 
-		InitDrmDisplay(hDsp, 17, 22, DRM_FORMAT_YUV420, dstRect, srcRect);
+		InitDrmDisplay(hDsp, PLANE_ID, CRTC_ID, DRM_FORMAT_YUV420, srcRect, dstRect);
 #endif	//	ENABLE_DRM_DISPLAY
 	}
 
@@ -212,7 +212,7 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 
 		seqIn.width = seqOut.width;
 		seqIn.height = seqOut.height;
-		seqIn.numBuffers = 2;
+		seqIn.numBuffers = 3;
 		seqIn.imgPlaneNum = IMG_PLANE_NUM;
 		
 #ifdef ENABLE_CBCR_INTERLEAVE
@@ -244,6 +244,7 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 		uint64_t startTime, endTime, totalTime = 0;
 		int64_t timeStamp = -1;
 		FILE *fpOut = NULL;
+		int32_t prvIndex = -1;
 
 		NX_V4L2DEC_IN decIn;
 		NX_V4L2DEC_OUT decOut;
@@ -311,9 +312,14 @@ int32_t VpuDecMain( CODEC_APP_DATA *pAppData )
 				UpdateBuffer(hDsp, &decOut.hImg, NULL);
 #endif
 
-				ret = NX_V4l2DecClrDspFlag(hDec, NULL, decOut.dispIdx);
-				if (ret < 0)
-					break;
+				if( prvIndex >= 0 )
+				{
+					ret = NX_V4l2DecClrDspFlag(hDec, NULL, prvIndex);
+					if (ret < 0)
+						break;
+				}
+
+				prvIndex = decOut.dispIdx;
 			}
 
 			frmCnt++;

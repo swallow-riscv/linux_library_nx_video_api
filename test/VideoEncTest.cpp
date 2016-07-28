@@ -47,7 +47,8 @@
 #define IMAGE_BUFFER_NUM	8
 #define IMG_FORMAT			V4L2_PIX_FMT_YUV420M  //V4L2_PIX_FMT_NV12M
 #define IMG_PLANE_NUM		1
-
+#define PLANE_ID			26
+#define CRTC_ID				31
 
 static bool bExitLoop = false;
 
@@ -303,9 +304,7 @@ static int32_t VpuEncPerfMain(CODEC_APP_DATA *pAppData)
 #ifdef ENABLE_DRM_DISPLAY
 		hDsp = CreateDrmDisplay(drmFd);
 		DRM_RECT srcRect, dstRect;
-#endif	//	ENABLE_DRM_DISPLAY
 
-#ifdef ENABLE_DRM_DISPLAY
 		srcRect.x = 0;
 		srcRect.y = 0;
 		srcRect.width = inWidth;
@@ -333,7 +332,7 @@ static int32_t VpuEncPerfMain(CODEC_APP_DATA *pAppData)
 		}
 #endif
 
-		InitDrmDisplay(hDsp, 17, 22, DRM_FORMAT_YUV420, dstRect, srcRect );
+		InitDrmDisplay(hDsp, PLANE_ID, CRTC_ID, DRM_FORMAT_YUV420, srcRect, dstRect );
 #endif	//	ENABLE_DRM_DISPLAY
 	}
 
