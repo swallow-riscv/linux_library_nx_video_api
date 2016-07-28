@@ -11,7 +11,11 @@ LIB_PATH		:= ../../sysroot/lib
 
 # Target Information
 TARGET	:= video_api_test
+ifeq ($(CROSS_COMPILE),arm-linux-gnueabi-)
+FFMPEG_VERSION := ffmpeg-2.8.6-arm32
+else
 FFMPEG_VERSION := ffmpeg-2.8.6-arm64
+endif
 
 # Sources
 COBJS  	:=
