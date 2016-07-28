@@ -492,3 +492,11 @@ int NX_GetGEMHandles( int drmFd, NX_VID_MEMORY_INFO *pMem, uint32_t handles[NX_M
 	}
 	return 0;
 }
+
+int NX_GetGemHandle( int drmFd, NX_VID_MEMORY_INFO *pMem, int32_t plane )
+{
+	if( plane >= NX_MAX_PLANES || plane < 0 )
+		return -1;
+
+	return gem_from_flink( drmFd, pMem->flink[plane] );
+}

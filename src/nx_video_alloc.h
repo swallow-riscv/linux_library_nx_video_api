@@ -67,7 +67,7 @@ int NX_MapVideoMemory( NX_VID_MEMORY_INFO *pMem );
 int NX_UnmapVideoMemory( NX_VID_MEMORY_INFO *pMem );
 
 int NX_GetGEMHandles( int drmFd, NX_VID_MEMORY_INFO *pMem, uint32_t handles[NX_MAX_PLANES] );
-
+int NX_GetGemHandle( int drmFd, NX_VID_MEMORY_INFO *pMem, int32_t plane );
 
 #ifdef	__cplusplus
 };
