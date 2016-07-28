@@ -1,52 +1,60 @@
-include buildcfg.mk
+################################################################################
+#
+#	libnx_video_api.so
+#
+include ./buildcfg.mk
 
-######################################################################
-# Build options
+# Directory Path
+INC_PATH	:= ../sysroot/include
+LIB_PATH	:= ../sysroot/lib
 
-DIR		:= src
-TESTDIR	:= test
+# Target Information
+LIBNAME	:= libnx_video_api
+TARGET	:= $(LIBNAME).so
 
-######################################################################
+# Sources
+COBJS	:= \
+		./src/nx_video_alloc.o	\
+		./src/nx_video_enc.o	\
+		./src/nx_video_dec.o
+CPPOBJS	:=
+OBJS	:= $(COBJS) $(CPPOBJS)
+
+# Add Include Path
+INCLUDE	+= -I./ -I./src -I./src/include -I$(INC_PATH)
+
+# Add Dependent Libraries
+LIBRARY += -L$(LIB_PATH)
+
+# Compile Options
+CFLAGS	+= -fPIC
+
 # Build
-all: update
-	@for dir in $(DIR); do		\
-	make -C $$dir -f Makefile.cross || exit $?;	\
-	done
+all: $(TARGET)
+
+$(TARGET):	depend $(OBJS)
+	$(quiet)$(CC) $(LDFLAGS) -shared -Wl,-soname,$(TARGET) -o $@ $(OBJS) $(LIBRARY)
 
 install:
-	@for dir in $(DIR); do			\
-	make -C $$dir -f Makefile.cross install || exit $?;	\
-	done
+	@echo "$(ColorMagenta)[[[ Intall $(LIBNAME) ]]]$(ColorEnd)"
+	install -m 755 -d $(LIB_PATH)
+	install -m 755 -d $(INC_PATH)
+	install -m 644 $(TARGET) $(LIB_PATH)
+	install -m 644 ./src/include/linux/videodev2_nxp_media.h $(INC_PATH)
+	install -m 644 ./src/nx_video_alloc.h $(INC_PATH)
+	install -m 644 ./src/nx_video_api.h $(INC_PATH)
 
 clean:
-	@for dir in $(DIR); do			\
-	make -C $$dir -f Makefile.cross clean || exit $?;	\
-	done
+	@echo "$(ColorMagenta)[[[ Clean $(LIBNAME) ]]]$(ColorEnd)"
+	rm -f $(COBJS) $(CPPOBJS) $(TARGET) $(LIBNAME).a .depend
 
 distclean:
-	@for dir in $(DIR); do			\
-	make -C $$dir -f Makefile.cross distclean || exit $?;	\
-	done
-
-testall:
-	@for dir in $(TESTDIR); do	\
-	make -C $$dir -f Makefile.cross || exit $?;	\
-	done
-
-testinstall:
-	@for dir in $(TESTDIR); do		\
-	make -C $$dir -f Makefile.cross install || exit $?;	\
-	done
-
-testclean:
-	@for dir in $(TESTDIR); do		\
-	make -C $$dir -f Makefile.cross clean || exit $?;	\
-	done
-
-testdistclean:
-	@for dir in $(TESTDIR); do		\
-	make -C $$dir -f Makefile.cross distclean || exit $?;	\
-	done
+	@echo "$(ColorMagenta)[[[ Distclean $(LIBNAME) ]]]$(ColorEnd)"
+	rm -f $(COBJS) $(CPPOBJS) $(TARGET) .depend
+	rm -f $(LIB_PATH)/$(TARGET)
+	rm -f $(INC_PATH)/videodev2_nxp_media.h
+	rm -f $(INC_PATH)/nx_video_alloc.h
+	rm -f $(INC_PATH)/nx_video_api.h
 
 update:
 	@cmp -s																\
@@ -57,5 +65,16 @@ update:
 		echo "$(ColorMagenta)[[[ Update Private Header ]]]$(ColorEnd)";	\
 		cp -a															\
 			../linux-artik7/include/uapi/linux/videodev2_nxp_media.h	\
-			./src/include/linux;											\
+			./src/include/linux;										\
 	fi
+
+# Dependency
+ifeq (.depend,$(wildcard .depend))
+include .depend
+endif
+
+SRCS := $(COBJS:.o=.c) $(CPPOBJS:.o=.cpp)
+INCS := $(INCLUDE)
+depend dep:
+	@echo "$(ColorMagenta)[[[ Build $(LIBNAME) ]]]$(ColorEnd)"
+	$(quiet)$(CC) -M $(CFLAGS) $(INCS) $(SRCS) > .depend
