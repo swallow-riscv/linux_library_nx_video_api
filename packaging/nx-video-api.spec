@@ -1,7 +1,7 @@
 Name:    nx-video-api
 Version: 0.0.1
 Release: 2
-License: Apache 2.0
+License: LGPLv2+
 Summary: Nexell video APIs
 Group: Development/Libraries
 Source:  %{name}-%{version}.tar.gz
@@ -43,6 +43,8 @@ find %{buildroot} -type f -name "*.la" -delete
 %files
 %{_libdir}/libnx_video_api.so
 %{_libdir}/libnx_video_api.so.*
+%license LICENSE.LGPLv2+
 
 %files devel
 %{_includedir}/*
+%license LICENSE.LGPLv2+
