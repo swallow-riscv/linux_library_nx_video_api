@@ -150,8 +150,7 @@ NX_V4L2ENC_HANDLE NX_V4l2EncOpen(uint32_t codecType)
 	return hEnc;
 
 ERROR_EXIT:
-	if (hEnc)
-		free(hEnc);
+	free(hEnc);
 
 	return NULL;
 }

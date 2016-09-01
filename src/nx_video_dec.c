@@ -624,8 +624,7 @@ NX_V4L2DEC_HANDLE NX_V4l2DecOpen(uint32_t codecType)
 	return hDec;
 
 ERROR_EXIT:
-	if (hDec)
-		free(hDec);
+	free(hDec);
 
 	return NULL;
 }
