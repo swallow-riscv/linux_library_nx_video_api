@@ -81,11 +81,8 @@ static int32_t V4l2DecOpen(void)
 	char filename[64], name[64];
 	int32_t i = 0;
 
-	do
+	while ( !found || (i <= VIDEODEV_MINOR_MAX) )
 	{
-		if (i > VIDEODEV_MINOR_MAX)
-			break;
-
 		/* video device node */
 		sprintf(filename, "/dev/video%d", i);
 
@@ -119,7 +116,7 @@ static int32_t V4l2DecOpen(void)
 		}
 
 		i++;
-	} while (found == false);
+	}
 
 	if (found)
 	{
