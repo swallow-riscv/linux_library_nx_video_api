@@ -994,6 +994,7 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 	struct v4l2_plane planes[3];
 	int idx;
 	int32_t iStrmSize;
+	int32_t frameType;
 
 	if (NULL == hDec)
 	{
@@ -1045,12 +1046,13 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 		pDecOut->usedByte = buf.bytesused;
 		pDecOut->outFrmReliable_0_100[DECODED_FRAME] = buf.reserved;
 		pDecOut->timeStamp[DECODED_FRAME] = ((uint64_t)buf.timestamp.tv_sec) * 1000 + buf.timestamp.tv_usec / 1000;
+		frameType = buf.flags;
 
-		if (buf.reserved2 == V4L2_BUF_FLAG_KEYFRAME)
+		if (frameType & V4L2_BUF_FLAG_KEYFRAME)
 			pDecOut->picType[DECODED_FRAME] = PIC_TYPE_I;
-		else if	(buf.reserved2 == V4L2_BUF_FLAG_PFRAME)
+		else if	(frameType & V4L2_BUF_FLAG_PFRAME)
 			pDecOut->picType[DECODED_FRAME] = PIC_TYPE_P;
-		else if (buf.reserved2 == V4L2_BUF_FLAG_BFRAME)
+		else if (frameType & V4L2_BUF_FLAG_BFRAME)
 			pDecOut->picType[DECODED_FRAME] = PIC_TYPE_B;
 		else
 			pDecOut->picType[DECODED_FRAME] = PIC_TYPE_UNKNOWN;
@@ -1088,12 +1090,13 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 		pDecOut->hImg = *hDec->hImage[buf.index];
 		pDecOut->timeStamp[DISPLAY_FRAME] = ((uint64_t)buf.timestamp.tv_sec) * 1000 + buf.timestamp.tv_usec / 1000;
 		pDecOut->outFrmReliable_0_100[DISPLAY_FRAME] = buf.reserved;
+		frameType = buf.flags;
 
-		if (buf.reserved2 == V4L2_BUF_FLAG_KEYFRAME)
+		if (frameType & V4L2_BUF_FLAG_KEYFRAME)
 			pDecOut->picType[DISPLAY_FRAME] = PIC_TYPE_I;
-		else if (buf.reserved2 == V4L2_BUF_FLAG_PFRAME)
+		else if (frameType & V4L2_BUF_FLAG_PFRAME)
 			pDecOut->picType[DISPLAY_FRAME] = PIC_TYPE_P;
-		else if (buf.reserved2 == V4L2_BUF_FLAG_BFRAME)
+		else if (frameType & V4L2_BUF_FLAG_BFRAME)
 			pDecOut->picType[DISPLAY_FRAME] = PIC_TYPE_B;
 		else
 			pDecOut->picType[DISPLAY_FRAME] = PIC_TYPE_UNKNOWN;
