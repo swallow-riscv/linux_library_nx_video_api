@@ -616,11 +616,11 @@ int32_t NX_V4l2EncEncodeFrame(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_IN *pEncIn, NX_
 		pEncOut->strmBuf = (uint8_t *)hEnc->hBitStream[buf.index]->pBuffer;
 		pEncOut->strmSize = buf.m.planes[0].bytesused;
 
-		if (buf.reserved == V4L2_BUF_FLAG_KEYFRAME)
+		if (buf.flags & V4L2_BUF_FLAG_KEYFRAME)
 			pEncOut->frameType = PIC_TYPE_I;
-		else if (buf.reserved == V4L2_BUF_FLAG_PFRAME)
+		else if (buf.flags & V4L2_BUF_FLAG_PFRAME)
 			pEncOut->frameType = (pEncIn->forcedSkipFrame == 0) ? (PIC_TYPE_P) : (PIC_TYPE_SKIP);
-		else if (buf.reserved == V4L2_BUF_FLAG_BFRAME)
+		else if (buf.flags & V4L2_BUF_FLAG_BFRAME)
 			pEncOut->frameType = PIC_TYPE_B;
 		else
 			pEncOut->frameType = PIC_TYPE_UNKNOWN;
