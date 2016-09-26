@@ -65,7 +65,7 @@ static int alloc_gem(int drm_fd, int size, int flags)
 	struct nx_drm_gem_create arg = { 0, };
 	int ret;
 
-	arg.size = size;
+	arg.size = (uint32_t)size;
 	arg.flags = flags;
 
 	ret = drm_command_write_read(drm_fd, DRM_NX_GEM_CREATE, &arg,
@@ -265,7 +265,7 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 		break;
 	default:
 		printf("Unknown format type\n");
-		return NULL;
+		goto ErrorExit;
 	}
 
 	//	Decide Memory Size
