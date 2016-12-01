@@ -153,6 +153,8 @@ NX_MEMORY_INFO *NX_AllocateMemory( int size, int align )
 	if (drmFd < 0)
 		return NULL;
 
+	drmDropMaster( drmFd );
+
 	gemFd = alloc_gem(drmFd, size, flags);
 	if (gemFd < 0)
 		goto ErrorExit;
@@ -221,6 +223,8 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 	int drmFd = open( DRM_DEVICE_NAME, O_RDWR );
 	if (drmFd < 0)
 		return NULL;
+
+	drmDropMaster( drmFd );
 
 	//	Luma
 	luStride = ALIGN(width, 32);
