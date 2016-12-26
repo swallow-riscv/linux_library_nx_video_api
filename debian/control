@@ -1,0 +1,30 @@
+Source: nx-video-api
+Priority: optional
+Maintainer: Chanho Park <chanho61.park@samsung.com>,
+	Sungwon Jo <doriya@nexell.co.kr>,
+	Seong-O Park <ray@nexell.co.kr>
+Uploaders: Chanho Park <chanho61.park@samsung.com>
+Build-Depends:
+ debhelper (>= 9),
+ dh-autoreconf,
+ libdrm-dev
+Standards-Version: 3.9.8
+Section: libs
+
+Package: nx-video-api
+Architecture: any-arm arm64
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Description: Nexell video api Library
+
+Package: nx-video-api-dev
+Section: libdevel
+Architecture: any
+Depends:
+ nx-video-api (= ${binary:Version}),
+ ${misc:Depends},
+Multi-Arch: same
+Description: Development package for nexell video-api
