@@ -16,6 +16,7 @@ Architecture: any-arm arm64
 Depends:
  ${shlibs:Depends},
  ${misc:Depends},
+ libdrm2,
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Description: Nexell video api Library

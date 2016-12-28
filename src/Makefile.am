@@ -5,7 +5,7 @@ AM_CFLAGS = \
 
 libnx_video_api_la_LTLIBRARIES = libnx_video_api.la
 libnx_video_api_ladir = ${libdir}
-libnx_video_api_la_LDFLAGS = -L${libdir}
+libnx_video_api_la_LDFLAGS = -L${libdir} -ldrm
 
 libnx_video_api_la_SOURCES = \
 	nx_video_alloc.c	\
