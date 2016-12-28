@@ -8,6 +8,7 @@ Source:  %{name}-%{version}.tar.gz
 
 BuildRequires:  pkgconfig automake autoconf libtool
 BuildRequires:	libdrm-devel
+Requires: libdrm
 
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
