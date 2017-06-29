@@ -889,6 +889,11 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 		fmt.fmt.pix_mp.height = pSeqIn->height;
 		fmt.fmt.pix_mp.num_planes = pSeqIn->imgPlaneNum;
 
+		for (i=0 ; i<(int32_t)pSeqIn->imgPlaneNum ; i++) {
+			fmt.fmt.pix_mp.plane_fmt[i].sizeimage    = pSeqIn->pMemHandle[0]->size[i];
+			fmt.fmt.pix_mp.plane_fmt[i].bytesperline = pSeqIn->pMemHandle[0]->stride[i];
+		}
+
 		if (ioctl(hDec->fd, VIDIOC_S_FMT, &fmt) != 0)
 		{
 			printf("failed to ioctl: VIDIOC_S_FMT(Output Yuv)\n");
