@@ -193,7 +193,7 @@ static uint32_t vld_show_bits(VLD_STREAM *pstVldStm, int32_t iBits)
 	uint32_t dwRead;
 
 	dwRead = *pbyRead++ << 24;
-	if (iBits > iBitCnt) 
+	if (iBits > iBitCnt)
 	{
 		dwRead += *pbyRead++ << 16;
 		if (iBits > iBitCnt + 8)
@@ -301,13 +301,13 @@ static int32_t Mp4DecParseFrameHeader(NX_V4L2DEC_HANDLE hDec, uint8_t *pbyStream
 	if (vld_get_bits(&stStrm, 32) == 0x000001B6)
 	{
 		vld_flush_bits(&stStrm, 2);								/* vop_coding_type */
-	
+
 		do
 		{
 			if (vld_get_bits(&stStrm, 1) == 0)
 				break;
 		} while (stStrm.dwUsedBits < ((uint32_t)iStreamSize << 3));
-		
+
 		vld_flush_bits(&stStrm, 1 + hDec->vopTimeBits + 1);		/* marker_bits, vop_time_increment, marker_bits */
 
 		if (vld_get_bits(&stStrm, 1) == 0)						/* vop_coded */
@@ -411,9 +411,9 @@ static int32_t GetSequenceHeader(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeq
 			}
 			else
 			{
-				PUT_LE32(pbyDst, MKTAG('R','V','4','0'));				
+				PUT_LE32(pbyDst, MKTAG('R','V','4','0'));
 			}
-			
+
 			PUT_BE16(pbyDst, pSeqIn->width);
 			PUT_BE16(pbyDst, pSeqIn->height);
 			PUT_BE16(pbyDst, 0x0c);								/* BitCount */
@@ -465,7 +465,7 @@ static int32_t GetSequenceHeader(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeq
 		else
 			return -1;
 	}
-	
+
 	return iSize;
 }
 
@@ -639,7 +639,7 @@ int32_t NX_V4l2DecClose(NX_V4L2DEC_HANDLE hDec)
 
 	{
 		enum v4l2_buf_type type;
-		
+
 		type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		if (ioctl(hDec->fd, VIDIOC_STREAMOFF, &type) != 0)
 		{
@@ -791,7 +791,11 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		buf.index = 0;
 
 		buf.m.planes[0].m.userptr = (unsigned long)hDec->hStream[0]->pBuffer;
+#if USE_DRM_ALLOCATOR
 		buf.m.planes[0].m.fd = hDec->hStream[0]->dmaFd;
+#else
+		buf.m.planes[0].m.fd = hDec->hStream[0]->sharedFd;
+#endif
 		buf.m.planes[0].length = hDec->hStream[0]->size;
 		buf.m.planes[0].bytesused = iSeqSize;
 		buf.m.planes[0].data_offset = 0;
@@ -876,6 +880,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 	/* Set Output Image */
 	{
 		struct v4l2_format fmt;
+		int32_t i;
 
 		memset(&fmt, 0, sizeof(fmt));
 		fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -911,7 +916,10 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 		{
 			hDec->useExternalFrameBuffer = true;
 			if (2 > pSeqIn->numBuffers - hDec->numFrameBuffers)
+			{
 				printf("External Buffer too small.(min=%d, buffers=%d)\n", hDec->numFrameBuffers, pSeqIn->numBuffers );
+				return -1;
+			}
 
 			imgBuffCnt = pSeqIn->numBuffers;
 		}
@@ -961,7 +969,11 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 
 			for (j=0 ; j<(int32_t)pSeqIn->imgPlaneNum; j++)
 			{
+#if USE_DRM_ALLOCATOR
 				buf.m.planes[j].m.fd = hDec->hImage[i]->dmaFd[j];
+#else
+				buf.m.planes[j].m.fd = hDec->hImage[i]->sharedFd[j];
+#endif
 				buf.m.planes[j].length = hDec->hImage[i]->size[j];
 			}
 
@@ -1012,7 +1024,11 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 	buf.flags = pDecIn->eos ? 1 : 0;
 
 	/* buf.m.planes[0].m.userptr = (unsigned long)hStream->pBuffer; */
+#if USE_DRM_ALLOCATOR
 	buf.m.planes[0].m.fd = hDec->hStream[idx]->dmaFd;
+#else
+	buf.m.planes[0].m.fd = hDec->hStream[idx]->sharedFd;
+#endif
 	buf.m.planes[0].length = hDec->hStream[idx]->size;
 	buf.m.planes[0].bytesused = iStrmSize;
 	buf.m.planes[0].data_offset = 0;
@@ -1162,7 +1178,11 @@ int32_t NX_V4l2DecClrDspFlag(NX_V4L2DEC_HANDLE hDec, NX_VID_MEMORY_HANDLE hFrame
 
 	for (i = 0; i < hDec->planesNum; i++)
 	{
+#if USE_DRM_ALLOCATOR
 		buf.m.planes[i].m.fd = hDec->hImage[index]->dmaFd[i];
+#else
+		buf.m.planes[i].m.fd = hDec->hImage[index]->sharedFd[i];
+#endif
 		buf.m.planes[i].length = hDec->hImage[index]->size[i];
 	}
 
@@ -1232,7 +1252,11 @@ int32_t NX_V4l2DecFlush(NX_V4L2DEC_HANDLE hDec)
 
 			for (j = 0 ; j < (int32_t)hDec->planesNum; j++)
 			{
+#if USE_DRM_ALLOCATOR
 				buf.m.planes[j].m.fd = hDec->hImage[i]->dmaFd[j];
+#else
+				buf.m.planes[j].m.fd = hDec->hImage[i]->sharedFd[j];
+#endif
 				buf.m.planes[j].length = hDec->hImage[i]->size[j];
 			}
 

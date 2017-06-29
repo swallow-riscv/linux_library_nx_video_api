@@ -424,7 +424,11 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 		buf.memory = V4L2_MEMORY_DMABUF;
 		buf.index = 0;
 
+#if USE_DRM_ALLOCATOR
 		buf.m.planes[0].m.fd = hEnc->hBitStream[0]->dmaFd;
+#else
+		buf.m.planes[0].m.fd = hEnc->hBitStream[0]->sharedFd;
+#endif
 		//buf.m.planes[0].m.userptr = (unsigned long)hEnc->hBitStream[0]->pBuffer;
 		buf.m.planes[0].length = hEnc->hBitStream[0]->size;
 		buf.m.planes[0].bytesused = hEnc->hBitStream[0]->size;
@@ -550,7 +554,11 @@ int32_t NX_V4l2EncEncodeFrame(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_IN *pEncIn, NX_
 
 	for (i=0 ; i<hEnc->planesNum ; i++)
 	{
+#if USE_DRM_ALLOCATOR
 		buf.m.planes[i].m.fd = pEncIn->pImage->dmaFd[i];
+#else
+		buf.m.planes[i].m.fd = pEncIn->pImage->sharedFd[i];
+#endif
 		buf.m.planes[i].length = pEncIn->pImage->size[i];
 	}
 
@@ -571,7 +579,11 @@ int32_t NX_V4l2EncEncodeFrame(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_IN *pEncIn, NX_
 		buf.memory = V4L2_MEMORY_DMABUF;
 		buf.index = idx;
 
+#if USE_DRM_ALLOCATOR
 		buf.m.planes[0].m.fd = hEnc->hBitStream[idx]->dmaFd;
+#else
+		buf.m.planes[0].m.fd = hEnc->hBitStream[idx]->sharedFd;
+#endif
 		//buf.m.planes[0].m.userptr = (unsigned long)hBitStream[idx]->pBuffer;
 		buf.m.planes[0].length = hEnc->hBitStream[idx]->size;
 		buf.m.planes[0].bytesused = hEnc->hBitStream[idx]->size;

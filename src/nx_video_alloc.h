@@ -20,14 +20,19 @@ extern "C" {
 //
 typedef struct
 {
+#if USE_DRM_ALLOCATOR
 	int			drmFd;		//	DRM Device Handle
 	int			dmaFd;		//	DMA Memory Handle
 	int			gemFd;		//	GEM Handle
 	uint32_t	flink;		//	flink name
+#else
+	int			sharedFd;	//	ION Shared fd
+#endif
+
 	int32_t		size;		//	Allocate Size
 	int32_t		align;		//	Start Address Align
 	void		*pBuffer;	//	Virtual Address Pointer
-	uint32_t	reserved;
+	void		*pReserved;	//	For debugging or future user
 } NX_MEMORY_INFO, *NX_MEMORY_HANDLE;
 
 
@@ -42,6 +47,7 @@ typedef struct
 	int32_t		planes;			//	Number of valid planes
 	uint32_t	format;			//	Pixel Format(N/A)
 
+#if USE_DRM_ALLOCATOR
 	int			drmFd;						//	Drm Device Handle
 	int			dmaFd[NX_MAX_PLANES];		//	DMA memory Handle
 	int			gemFd[NX_MAX_PLANES];		//	GEM Handle
@@ -50,6 +56,14 @@ typedef struct
 	int32_t		stride[NX_MAX_PLANES];		//	Each plane's stride.
 	void		*pBuffer[NX_MAX_PLANES];	//	virtual address.
 	uint32_t	reserved[NX_MAX_PLANES];	//	for debugging or future user.
+#else
+	int			sharedFd[NX_MAX_PLANES];	//	Each plane's ion shared fd.
+#endif
+
+	int32_t		size[NX_MAX_PLANES];		//	Each plane's size.
+	int32_t		stride[NX_MAX_PLANES];		//	Each plane's stride.
+	void		*pBuffer[NX_MAX_PLANES];	//	Virtual Address Pointer
+	void		*pReserved[NX_MAX_PLANES];	//	for debugging or future user
 } NX_VID_MEMORY_INFO, *NX_VID_MEMORY_HANDLE;
 
 //	Nexell Private Memory Allocator
@@ -66,8 +80,17 @@ int NX_UnmapMemory( NX_MEMORY_INFO *pMem );
 int NX_MapVideoMemory( NX_VID_MEMORY_INFO *pMem );
 int NX_UnmapVideoMemory( NX_VID_MEMORY_INFO *pMem );
 
+#if USE_DRM_ALLOCATOR
 int NX_GetGEMHandles( int drmFd, NX_VID_MEMORY_INFO *pMem, uint32_t handles[NX_MAX_PLANES] );
 int NX_GetGemHandle( int drmFd, NX_VID_MEMORY_INFO *pMem, int32_t plane );
+#endif
+
+#ifdef ANDROID
+#include <gralloc_priv.h>
+#include <hardware/gralloc.h>
+
+int NX_PrivateHandleToVideoMemory( struct private_handle_t const *pHandle, NX_VID_MEMORY_INFO *pMemInfo );
+#endif
 
 #ifdef	__cplusplus
 };
