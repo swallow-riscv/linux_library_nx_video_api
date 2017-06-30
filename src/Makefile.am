@@ -1,6 +1,5 @@
 AM_CFLAGS = \
 	$(WARN_CFLAGS)	\
-	-DUSE_DRM_ALLOCATOR=1	\
 	-I./include		\
 	-I${includedir}
 

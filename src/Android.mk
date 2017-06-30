@@ -4,15 +4,15 @@ include $(CLEAR_VARS)
 #
 #	Compile Flags
 #
-USE_DRM_ALLOCATOR := false
+USE_ION_ALLOCATOR := true
 
 #
 #	Compile Options
 #
-ifeq ($(USE_DRM_ALLOCATOR),true)
-LOCAL_CFLAGS += -DARM64=1 -DUSE_DRM_ALLOCATOR=1
+ifeq ($(USE_ION_ALLOCATOR),true)
+LOCAL_CFLAGS += -DPLATFORM_SDK_VERSION=$(PLATFORM_SDK_VERSION) -DUSE_ION_ALLOCATOR
 else
-LOCAL_CFLAGS += -DPLATFORM_SDK_VERSION=$(PLATFORM_SDK_VERSION) -DUSE_DRM_ALLOCATOR=0
+LOCAL_CFLAGS += -DARM64=1
 endif
 
 LOCAL_C_INCLUDES := \
@@ -29,14 +29,14 @@ LOCAL_SHARED_LIBRARIES :=	\
 	libcutils	\
 	libhardware
 
-ifeq ($(USE_DRM_ALLOCATOR),true)
+ifeq ($(USE_ION_ALLOCATOR),true)
 LOCAL_SRC_FILES := \
-	nx_video_alloc_drm.c \
+	nx_video_alloc_ion.cpp \
 	nx_video_enc.c \
 	nx_video_dec.c
 else
 LOCAL_SRC_FILES := \
-	nx_video_alloc_ion.cpp \
+	nx_video_alloc_drm.c \
 	nx_video_enc.c \
 	nx_video_dec.c
 endif

@@ -20,7 +20,7 @@ extern "C" {
 //
 typedef struct
 {
-#if USE_DRM_ALLOCATOR
+#ifndef USE_ION_ALLOCATOR
 	int			drmFd;		//	DRM Device Handle
 	int			dmaFd;		//	DMA Memory Handle
 	int			gemFd;		//	GEM Handle
@@ -47,7 +47,7 @@ typedef struct
 	int32_t		planes;			//	Number of valid planes
 	uint32_t	format;			//	Pixel Format(N/A)
 
-#if USE_DRM_ALLOCATOR
+#ifndef USE_ION_ALLOCATOR
 	int			drmFd;						//	Drm Device Handle
 	int			dmaFd[NX_MAX_PLANES];		//	DMA memory Handle
 	int			gemFd[NX_MAX_PLANES];		//	GEM Handle
@@ -76,7 +76,7 @@ int NX_UnmapMemory( NX_MEMORY_INFO *pMem );
 int NX_MapVideoMemory( NX_VID_MEMORY_INFO *pMem );
 int NX_UnmapVideoMemory( NX_VID_MEMORY_INFO *pMem );
 
-#if USE_DRM_ALLOCATOR
+#ifndef USE_ION_ALLOCATOR
 int NX_GetGEMHandles( int drmFd, NX_VID_MEMORY_INFO *pMem, uint32_t handles[NX_MAX_PLANES] );
 int NX_GetGemHandle( int drmFd, NX_VID_MEMORY_INFO *pMem, int32_t plane );
 #endif

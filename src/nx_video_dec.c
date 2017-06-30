@@ -791,7 +791,7 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		buf.index = 0;
 
 		buf.m.planes[0].m.userptr = (unsigned long)hDec->hStream[0]->pBuffer;
-#if USE_DRM_ALLOCATOR
+#ifndef USE_ION_ALLOCATOR
 		buf.m.planes[0].m.fd = hDec->hStream[0]->dmaFd;
 #else
 		buf.m.planes[0].m.fd = hDec->hStream[0]->sharedFd;
@@ -974,7 +974,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 
 			for (j=0 ; j<(int32_t)pSeqIn->imgPlaneNum; j++)
 			{
-#if USE_DRM_ALLOCATOR
+#ifndef USE_ION_ALLOCATOR
 				buf.m.planes[j].m.fd = hDec->hImage[i]->dmaFd[j];
 #else
 				buf.m.planes[j].m.fd = hDec->hImage[i]->sharedFd[j];
@@ -1029,7 +1029,7 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 	buf.flags = pDecIn->eos ? 1 : 0;
 
 	/* buf.m.planes[0].m.userptr = (unsigned long)hStream->pBuffer; */
-#if USE_DRM_ALLOCATOR
+#ifndef USE_ION_ALLOCATOR
 	buf.m.planes[0].m.fd = hDec->hStream[idx]->dmaFd;
 #else
 	buf.m.planes[0].m.fd = hDec->hStream[idx]->sharedFd;
@@ -1183,7 +1183,7 @@ int32_t NX_V4l2DecClrDspFlag(NX_V4L2DEC_HANDLE hDec, NX_VID_MEMORY_HANDLE hFrame
 
 	for (i = 0; i < hDec->planesNum; i++)
 	{
-#if USE_DRM_ALLOCATOR
+#ifndef USE_ION_ALLOCATOR
 		buf.m.planes[i].m.fd = hDec->hImage[index]->dmaFd[i];
 #else
 		buf.m.planes[i].m.fd = hDec->hImage[index]->sharedFd[i];
@@ -1257,7 +1257,7 @@ int32_t NX_V4l2DecFlush(NX_V4L2DEC_HANDLE hDec)
 
 			for (j = 0 ; j < (int32_t)hDec->planesNum; j++)
 			{
-#if USE_DRM_ALLOCATOR
+#ifndef USE_ION_ALLOCATOR
 				buf.m.planes[j].m.fd = hDec->hImage[i]->dmaFd[j];
 #else
 				buf.m.planes[j].m.fd = hDec->hImage[i]->sharedFd[j];

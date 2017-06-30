@@ -27,7 +27,7 @@ INCLUDE	+= -I./ -I./src -I./src/include -I$(INC_PATH)
 LIBRARY += -L$(LIB_PATH)
 
 # Compile Options
-CFLAGS	+= -fPIC -DUSE_DRM_ALLOCATOR=1
+CFLAGS	+= -fPIC
 
 # Build
 all: $(TARGET)
