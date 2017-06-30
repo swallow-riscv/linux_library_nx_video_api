@@ -52,10 +52,6 @@ typedef struct
 	int			dmaFd[NX_MAX_PLANES];		//	DMA memory Handle
 	int			gemFd[NX_MAX_PLANES];		//	GEM Handle
 	uint32_t	flink[NX_MAX_PLANES];		//	flink name
-	int32_t		size[NX_MAX_PLANES];		//	Each plane's size.
-	int32_t		stride[NX_MAX_PLANES];		//	Each plane's stride.
-	void		*pBuffer[NX_MAX_PLANES];	//	virtual address.
-	uint32_t	reserved[NX_MAX_PLANES];	//	for debugging or future user.
 #else
 	int			sharedFd[NX_MAX_PLANES];	//	Each plane's ion shared fd.
 #endif

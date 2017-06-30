@@ -14,7 +14,7 @@ TARGET	:= $(LIBNAME).so
 
 # Sources
 COBJS	:= \
-		./src/nx_video_alloc.o	\
+		./src/nx_video_alloc_drm.o	\
 		./src/nx_video_enc.o	\
 		./src/nx_video_dec.o
 CPPOBJS	:=
@@ -27,7 +27,7 @@ INCLUDE	+= -I./ -I./src -I./src/include -I$(INC_PATH)
 LIBRARY += -L$(LIB_PATH)
 
 # Compile Options
-CFLAGS	+= -fPIC
+CFLAGS	+= -fPIC -DUSE_DRM_ALLOCATOR=1
 
 # Build
 all: $(TARGET)

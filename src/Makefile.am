@@ -1,5 +1,6 @@
 AM_CFLAGS = \
 	$(WARN_CFLAGS)	\
+	-DUSE_DRM_ALLOCATOR=1	\
 	-I./include		\
 	-I${includedir}
 
@@ -8,7 +9,7 @@ libnx_video_api_ladir = ${libdir}
 libnx_video_api_la_LDFLAGS = -L${libdir} -ldrm
 
 libnx_video_api_la_SOURCES = \
-	nx_video_alloc.c	\
+	nx_video_alloc_drm.c	\
 	nx_video_enc.c		\
 	nx_video_dec.c
 
