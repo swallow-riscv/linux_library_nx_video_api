@@ -29,7 +29,7 @@
 #define ION_HEAP_TYPE_MASK		ION_HEAP_TYPE_DMA_MASK
 
 #ifndef ALIGN
-#define	ALIGN(X,N)	( (X+N-1) & (~(N-1)) )
+#define	ALIGN(X,N)		( (X+N-1) & (~(N-1)) )
 #endif
 
 #ifndef ALIGNED16
@@ -134,6 +134,26 @@ static int ion_alloc_fd(int fd, size_t len, size_t align, unsigned int heap_mask
 	return ret;
 }
 
+static int32_t IsContinuousPlanes( uint32_t fourcc )
+{
+	switch (fourcc)
+	{
+	case V4L2_PIX_FMT_YUV420M:
+	case V4L2_PIX_FMT_YVU420M:
+	case V4L2_PIX_FMT_NV12M:
+	case V4L2_PIX_FMT_NV21M:
+	case V4L2_PIX_FMT_YUV422M:
+	case V4L2_PIX_FMT_NV16M:
+	case V4L2_PIX_FMT_NV61M:
+	case V4L2_PIX_FMT_YUV444M:
+	case V4L2_PIX_FMT_NV24M:
+	case V4L2_PIX_FMT_NV42M:
+		return 0;
+	}
+
+	return 1;
+}
+
 //
 //	Nexell Memory Allocator Wrapper
 //
@@ -210,12 +230,6 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 	if( 0 > ionFd )
 		return NULL;
 
-	// hw_module_t const *pmodule = NULL;
-	// gralloc_module_t const *module = NULL;
-	// hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &pmodule);
-	// module = reinterpret_cast<gralloc_module_t const *>(pmodule);
-	// android_ycbcr ycbcr;
-
 	//	Luma
 	luStride = ALIGN(width, 32);
 	luVStride = ALIGN(height, 16);
@@ -223,13 +237,17 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 	//	Chroma
 	switch (format)
 	{
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_YUV420M:
+	case V4L2_PIX_FMT_YVU420M:
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV21M:
 		cStride = luStride/2;
 		cVStride = ALIGN(height/2, 16);
 		break;
 
+	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUV422M:
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
@@ -237,6 +255,7 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 		cVStride = luVStride;
 		break;
 
+	case V4L2_PIX_FMT_YUV444:
 	case V4L2_PIX_FMT_YUV444M:
 	case V4L2_PIX_FMT_NV24M:
 	case V4L2_PIX_FMT_NV42M:
@@ -255,41 +274,71 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 	}
 
 	//	Decide Memory Size
-	switch( planes )
+	switch (planes)
 	{
 	case 1:
 		size[0] = luStride*luVStride + cStride*cVStride*2;
 		stride[0] = luStride;
+
 		ret = ion_alloc_fd( ionFd, size[0], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[0] );
 		if( 0 > ret ) goto ErrorExit;
+
 		break;
 
 	case 2:
 		size[0] = luStride*luVStride;
 		stride[0] = luStride;
-		ret = ion_alloc_fd( ionFd, size[0], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[0] );
-		if( 0 > ret ) goto ErrorExit;
 
 		size[1] = cStride*cVStride*2;
 		stride[1] = cStride * 2;
-		ret = ion_alloc_fd( ionFd, size[1], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[1] );
-		if( 0 > ret ) goto ErrorExit;
+
+		if( IsContinuousPlanes(format) )
+		{
+			ret = ion_alloc_fd( ionFd, size[0] + size[1], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[0] );
+			if( 0 > ret ) goto ErrorExit;
+
+			sharedFd[1] = sharedFd[0];
+		}
+		else
+		{
+			ret = ion_alloc_fd( ionFd, size[0], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[0] );
+			if( 0 > ret ) goto ErrorExit;
+
+			ret = ion_alloc_fd( ionFd, size[1], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[1] );
+			if( 0 > ret ) goto ErrorExit;
+		}
+		break;
 
 	case 3:
 		size[0] = luStride*luVStride;
 		stride[0] = luStride;
-		ret = ion_alloc_fd( ionFd, size[0], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[0] );
-		if( 0 > ret ) goto ErrorExit;
 
 		size[1] = cStride*cVStride;
 		stride[1] = cStride;
-		ret = ion_alloc_fd( ionFd, size[1], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[1] );
-		if( 0 > ret ) goto ErrorExit;
 
 		size[2] = cStride*cVStride;
 		stride[2] = cStride;
-		ret = ion_alloc_fd( ionFd, size[2], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[2] );
-		if( 0 > ret ) goto ErrorExit;
+
+		if( IsContinuousPlanes(format) )
+		{
+			ret = ion_alloc_fd( ionFd, size[0], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[0] );
+			if( 0 > ret ) goto ErrorExit;
+
+			sharedFd[1] =
+			sharedFd[2] = sharedFd[0];
+		}
+		else
+		{
+			ret = ion_alloc_fd( ionFd, size[0], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[0] );
+			if( 0 > ret ) goto ErrorExit;
+
+			ret = ion_alloc_fd( ionFd, size[1], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[1] );
+			if( 0 > ret ) goto ErrorExit;
+
+			ret = ion_alloc_fd( ionFd, size[2], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[2] );
+			if( 0 > ret ) goto ErrorExit;
+		}
+		break;
 
 	default:
 		break;
@@ -332,12 +381,10 @@ void NX_FreeVideoMemory( NX_VID_MEMORY_INFO * pMem )
 	int32_t i;
 	if( pMem )
 	{
+		NX_UnmapVideoMemory( pMem );
+
 		for( i=0; i < pMem->planes ; i++ )
 		{
-			if( pMem->pBuffer[i] )
-			{
-				munmap( pMem->pBuffer[i], pMem->size[i] );
-			}
 			close(pMem->sharedFd[i]);
 		}
 		free( pMem );
@@ -387,43 +434,91 @@ int NX_UnmapMemory( NX_MEMORY_INFO *pMem )
 
 int NX_MapVideoMemory( NX_VID_MEMORY_INFO *pMem )
 {
-	int32_t i;
+	int32_t i, size=0;
 	void *pBuf;
-	if( !pMem )
-		return -1;
 
-	//	Already Mapped
-	for( i=0 ; i < pMem->planes; i ++ )
+	if( !pMem )
 	{
-		if( pMem->pBuffer[i] )
-			return -1;
-		else
+		return -1;
+	}
+
+	if( IsContinuousPlanes(pMem->format) )
+	{
+		for( i=0 ; i < pMem->planes; i ++ )
 		{
-			pBuf = mmap( 0, pMem->size[i], PROT_READ|PROT_WRITE, MAP_SHARED, pMem->sharedFd[i], 0 );
+			size += pMem->size[i];
+		}
+
+		for( i=0 ; i < pMem->planes; i ++ )
+		{
+			pBuf = (i < 1 ) ?
+				mmap( 0, size, PROT_READ|PROT_WRITE, MAP_SHARED, pMem->sharedFd[i], 0 ) :
+				(uint8_t*)pMem->pBuffer[i-1] + pMem->size[i-1];
+
 			if( pBuf == MAP_FAILED )
 			{
 				return -1;
 			}
+
+			pMem->pBuffer[i] = pBuf;
 		}
-		pMem->pBuffer[i] = pBuf;
 	}
+	else
+	{
+		for( i=0 ; i < pMem->planes; i ++ )
+		{
+			pBuf = mmap( 0, pMem->size[i], PROT_READ|PROT_WRITE, MAP_SHARED, pMem->sharedFd[i], 0 );
+
+			if( pBuf == MAP_FAILED )
+			{
+				return -1;
+			}
+
+			pMem->pBuffer[i] = pBuf;
+		}
+	}
+
 	return 0;
 }
 
 int NX_UnmapVideoMemory( NX_VID_MEMORY_INFO *pMem )
 {
-	int32_t i;
+	int32_t i, size=0;
 	if( !pMem )
-		return -1;
-	for( i=0; i < pMem->planes ; i++ )
 	{
-		if( pMem->pBuffer[i] )
+		return -1;
+	}
+
+	if( IsContinuousPlanes(pMem->format) )
+	{
+		for( i=0 ; i < pMem->planes; i ++ )
 		{
-			munmap( pMem->pBuffer[i], pMem->size[i] );
+			size += pMem->size[i];
+		}
+
+		if( pMem->pBuffer[0] )
+		{
+			munmap( pMem->pBuffer[0], size );
 		}
 		else
+		{
 			return -1;
+		}
 	}
+	else {
+		for( i=0; i < pMem->planes ; i++ )
+		{
+			if( pMem->pBuffer[i] )
+			{
+				munmap( pMem->pBuffer[i], pMem->size[i] );
+			}
+			else
+			{
+				return -1;
+			}
+		}
+	}
+
 	return 0;
 }
 

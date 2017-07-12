@@ -850,7 +850,6 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 			return -1;
 		}
 
-		pSeqOut->imgFourCC = fmt.fmt.pix_mp.pixelformat;
 		pSeqOut->width = fmt.fmt.pix_mp.width;
 		pSeqOut->height = fmt.fmt.pix_mp.height;
 		pSeqOut->minBuffers = fmt.fmt.pix_mp.reserved[1];
@@ -877,125 +876,123 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 /*----------------------------------------------------------------------------*/
 int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 {
-	/* Set Output Image */
+	struct v4l2_format fmt;
+	struct v4l2_requestbuffers req;
+	struct v4l2_plane planes[3];
+	struct v4l2_buffer buf;
+	enum v4l2_buf_type type;
+	int32_t imgBuffCnt, i, j;
+
+	/* Calculate Buffer Number */
+	if (pSeqIn->pMemHandle == NULL)
 	{
-		struct v4l2_format fmt;
-		int32_t i;
-
-		memset(&fmt, 0, sizeof(fmt));
-		fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-		fmt.fmt.pix_mp.pixelformat = pSeqIn->imgFormat;
-		fmt.fmt.pix_mp.width = pSeqIn->width;
-		fmt.fmt.pix_mp.height = pSeqIn->height;
-		fmt.fmt.pix_mp.num_planes = pSeqIn->imgPlaneNum;
-
-		for (i=0 ; i<(int32_t)pSeqIn->imgPlaneNum ; i++) {
-			fmt.fmt.pix_mp.plane_fmt[i].sizeimage    = pSeqIn->pMemHandle[0]->size[i];
-			fmt.fmt.pix_mp.plane_fmt[i].bytesperline = pSeqIn->pMemHandle[0]->stride[i];
-		}
-
-		if (ioctl(hDec->fd, VIDIOC_S_FMT, &fmt) != 0)
+		hDec->useExternalFrameBuffer = false;
+		imgBuffCnt = hDec->numFrameBuffers + pSeqIn->numBuffers;
+	}
+	else
+	{
+		hDec->useExternalFrameBuffer = true;
+		if (2 > pSeqIn->numBuffers - hDec->numFrameBuffers)
 		{
-			printf("failed to ioctl: VIDIOC_S_FMT(Output Yuv)\n");
+			printf("External Buffer too small.(min=%d, buffers=%d)\n", hDec->numFrameBuffers, pSeqIn->numBuffers );
 			return -1;
 		}
 
-		hDec->planesNum = pSeqIn->imgPlaneNum;
+		imgBuffCnt = pSeqIn->numBuffers;
 	}
+	hDec->numFrameBuffers = imgBuffCnt;
 
-	/* Malloc Output Image */
+	/* Allocate Buffer */
+	for (i=0 ; i<imgBuffCnt ; i++)
 	{
-		struct v4l2_requestbuffers req;
-		struct v4l2_plane planes[3];
-		struct v4l2_buffer buf;
-		enum v4l2_buf_type type;
-		int32_t imgBuffCnt, i, j;
-
-		/* Calculate Buffer Number */
-		if (pSeqIn->pMemHandle == NULL)
+		if (true == hDec->useExternalFrameBuffer)
 		{
-			hDec->useExternalFrameBuffer = false;
-			imgBuffCnt = hDec->numFrameBuffers + pSeqIn->numBuffers;
+			hDec->hImage[i] = pSeqIn->pMemHandle[i];
 		}
 		else
 		{
-			hDec->useExternalFrameBuffer = true;
-			if (2 > pSeqIn->numBuffers - hDec->numFrameBuffers)
+			hDec->hImage[i] = NX_AllocateVideoMemory(pSeqIn->width, pSeqIn->height, pSeqIn->imgPlaneNum, pSeqIn->imgFormat, 4096);
+			if (hDec->hImage[i] == NULL)
 			{
-				printf("External Buffer too small.(min=%d, buffers=%d)\n", hDec->numFrameBuffers, pSeqIn->numBuffers );
+				printf("Failed to allocate image buffer(%d, %d, %d)\n", i, pSeqIn->width, pSeqIn->height);
 				return -1;
 			}
 
-			imgBuffCnt = pSeqIn->numBuffers;
-		}
-		hDec->numFrameBuffers = imgBuffCnt;
-
-		/* Request Output Buffer */
-		memset(&req, 0, sizeof(req));
-		req.type	= V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-		req.count = imgBuffCnt;
-		req.memory = V4L2_MEMORY_DMABUF;
-
-		if (ioctl(hDec->fd, VIDIOC_REQBUFS, &req) != 0)
-		{
-			printf("failed to ioctl: VIDIOC_REQBUFS(Output YUV)\n");
-			return -1;
-		}
-
-		memset(&buf, 0, sizeof(buf));
-		buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-		buf.m.planes = planes;
-		buf.length = pSeqIn->imgPlaneNum;
-		buf.memory = V4L2_MEMORY_DMABUF;
-
-		/* Allocate Buffer(Internal or External) */
-		for (i=0 ; i<imgBuffCnt ; i++)
-		{
-			if (true == hDec->useExternalFrameBuffer)
-			{
-				hDec->hImage[i] = pSeqIn->pMemHandle[i];
+			if (NX_MapVideoMemory(hDec->hImage[i]) != 0)  {
+				printf("Video Memory Mapping Failed\n");
+				return -1;
 			}
-			else
-			{
-				hDec->hImage[i] = NX_AllocateVideoMemory(pSeqIn->width, pSeqIn->height, pSeqIn->imgPlaneNum, pSeqIn->imgFormat, 4096);
-				if (hDec->hImage[i] == NULL)
-				{
-					printf("Failed to allocate image buffer(%d, %d, %d)\n", i, pSeqIn->width, pSeqIn->height);
-					return -1;
-				}
+		}
+	}
 
-				if (NX_MapVideoMemory(hDec->hImage[i]) != 0)  {
-					printf("Video Memory Mapping Failed\n");
-					return -1;
-				}
-			}
+	/* Set Output Image */
+	memset(&fmt, 0, sizeof(fmt));
+	fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	fmt.fmt.pix_mp.pixelformat = pSeqIn->imgFormat;
+	fmt.fmt.pix_mp.width = pSeqIn->width;
+	fmt.fmt.pix_mp.height = pSeqIn->height;
+	fmt.fmt.pix_mp.num_planes = pSeqIn->imgPlaneNum;
 
-			buf.index = i;
+	for (i=0 ; i<(int32_t)pSeqIn->imgPlaneNum ; i++) {
+		fmt.fmt.pix_mp.plane_fmt[i].sizeimage    = hDec->hImage[0]->size[i];
+		fmt.fmt.pix_mp.plane_fmt[i].bytesperline = hDec->hImage[0]->stride[i];
+	}
 
-			for (j=0 ; j<(int32_t)pSeqIn->imgPlaneNum; j++)
-			{
+	if (ioctl(hDec->fd, VIDIOC_S_FMT, &fmt) != 0)
+	{
+		printf("failed to ioctl: VIDIOC_S_FMT(Output Yuv)\n");
+		return -1;
+	}
+
+	hDec->planesNum = pSeqIn->imgPlaneNum;
+
+	/* Request Output Buffer */
+	memset(&req, 0, sizeof(req));
+	req.type	= V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	req.count = imgBuffCnt;
+	req.memory = V4L2_MEMORY_DMABUF;
+
+	if (ioctl(hDec->fd, VIDIOC_REQBUFS, &req) != 0)
+	{
+		printf("failed to ioctl: VIDIOC_REQBUFS(Output YUV)\n");
+		return -1;
+	}
+
+	memset(&buf, 0, sizeof(buf));
+	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	buf.m.planes = planes;
+	buf.length = pSeqIn->imgPlaneNum;
+	buf.memory = V4L2_MEMORY_DMABUF;
+
+	/* Allocate Buffer(Internal or External) */
+	for (i=0 ; i<imgBuffCnt ; i++)
+	{
+		buf.index = i;
+
+		for (j=0 ; j<(int32_t)pSeqIn->imgPlaneNum; j++)
+		{
 #ifndef USE_ION_ALLOCATOR
-				buf.m.planes[j].m.fd = hDec->hImage[i]->dmaFd[j];
+			buf.m.planes[j].m.fd = hDec->hImage[i]->dmaFd[j];
 #else
-				buf.m.planes[j].m.fd = hDec->hImage[i]->sharedFd[j];
+			buf.m.planes[j].m.fd = hDec->hImage[i]->sharedFd[j];
 #endif
-				buf.m.planes[j].length = hDec->hImage[i]->size[j];
-			}
-
-			if (ioctl(hDec->fd, VIDIOC_QBUF, &buf) != 0)
-			{
-				printf("failed to ioctl: VIDIOC_QBUF(Output YUV - %d)\n", i);
-				return -1;
-			}
+			buf.m.planes[j].length = hDec->hImage[i]->size[j];
 		}
 
-		type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-		if (ioctl(hDec->fd, VIDIOC_STREAMON, &type) != 0)
+		if (ioctl(hDec->fd, VIDIOC_QBUF, &buf) != 0)
 		{
-			printf("failed to ioctl: VIDIOC_STREAMON\n");
+			printf("failed to ioctl: VIDIOC_QBUF(Output YUV - %d)\n", i);
 			return -1;
 		}
 	}
+
+	type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	if (ioctl(hDec->fd, VIDIOC_STREAMON, &type) != 0)
+	{
+		printf("failed to ioctl: VIDIOC_STREAMON\n");
+		return -1;
+	}
+
 
 	return 0;
 }

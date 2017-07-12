@@ -175,7 +175,6 @@ typedef struct tNX_V4L2DEC_SEQ_OUT {
 	int32_t frameRateNum;			/* Frame Rate Numerator */
 	int32_t frameRateDen;			/* Frame Rate Denominator (-1 : no information) */
 
-	int32_t imgFourCC;				/* FourCC according to decoded image type */
 	int32_t thumbnailWidth;			/* Width of thumbnail image */
 	int32_t thumbnailHeight;		/* Height of thumbnail image */
 
