@@ -540,18 +540,41 @@ int NX_PrivateHandleToVideoMemory( struct private_handle_t const *pHandle, NX_VI
 	pMemInfo->height      = pHandle->height;
 	pMemInfo->align       = 4096;
 	pMemInfo->planes      = 3;
-	pMemInfo->format      = pHandle->format;
 
 	pMemInfo->sharedFd[0] = pHandle->share_fd;
 	pMemInfo->sharedFd[1] = pHandle->share_fd;
 	pMemInfo->sharedFd[2] = pHandle->share_fd;
 
-	pMemInfo->stride[0]   = (int32_t)ycbcr.ystride;
-	pMemInfo->size[0]     = (int32_t)((uint64_t)ycbcr.cb - (uint64_t)ycbcr.y);
-	pMemInfo->stride[1]   =
-	pMemInfo->stride[2]   = (int32_t)ycbcr.cstride;
-	pMemInfo->size[1]     =
-	pMemInfo->size[2]     = (int32_t)((uint64_t)ycbcr.cr - (uint64_t)ycbcr.cb);
+	switch( pHandle->format )
+	{
+	case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
+	case HAL_PIXEL_FORMAT_YCbCr_420_888:
+		pMemInfo->format    = V4L2_PIX_FMT_YUV420;
+
+		pMemInfo->stride[0] = (int32_t)ycbcr.ystride;
+		pMemInfo->size[0]   = (int32_t)((uint64_t)ycbcr.cb - (uint64_t)ycbcr.y);
+		pMemInfo->stride[1] =
+		pMemInfo->stride[2] = (int32_t)ycbcr.cstride;
+		pMemInfo->size[1]   =
+		pMemInfo->size[2]   = (int32_t)((uint64_t)ycbcr.cr - (uint64_t)ycbcr.cb);
+		break;
+
+	case HAL_PIXEL_FORMAT_YV12:
+		pMemInfo->format    = V4L2_PIX_FMT_YVU420;
+
+		pMemInfo->stride[0] = (int32_t)ycbcr.ystride;
+		pMemInfo->size[0]   = (int32_t)((uint64_t)ycbcr.cr - (uint64_t)ycbcr.y);
+		pMemInfo->stride[1] =
+		pMemInfo->stride[2] = (int32_t)ycbcr.cstride;
+		pMemInfo->size[1]   =
+		pMemInfo->size[2]   = (int32_t)((uint64_t)ycbcr.cb - (uint64_t)ycbcr.cr);
+		break;
+
+	default:
+		memset( pMemInfo, 0x00, sizeof(NX_VID_MEMORY_INFO) );
+		printf("Unknown format type.\n");
+		return -1;
+	}
 
 	return 0;
 }
