@@ -321,7 +321,7 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 
 		if( IsContinuousPlanes(format) )
 		{
-			ret = ion_alloc_fd( ionFd, size[0], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[0] );
+			ret = ion_alloc_fd( ionFd, size[0] + size[1] + size[2], align, ION_HEAP_TYPE_MASK, 0, &sharedFd[0] );
 			if( 0 > ret ) goto ErrorExit;
 
 			sharedFd[1] =
@@ -535,6 +535,12 @@ int NX_PrivateHandleToVideoMemory( struct private_handle_t const *pHandle, NX_VI
 	ret = module->lock_ycbcr(module, pHandle, PROT_READ | PROT_WRITE, 0, 0,
 		pHandle->width, pHandle->height, &ycbcr);
 
+	if( ret )
+	{
+		printf("Fail, lock_ycbcr().\n");
+		return ret;
+	}
+
 	memset( pMemInfo, 0x00, sizeof(NX_VID_MEMORY_INFO) );
 	pMemInfo->width       = pHandle->width;
 	pMemInfo->height      = pHandle->height;
@@ -573,9 +579,11 @@ int NX_PrivateHandleToVideoMemory( struct private_handle_t const *pHandle, NX_VI
 	default:
 		memset( pMemInfo, 0x00, sizeof(NX_VID_MEMORY_INFO) );
 		printf("Unknown format type.\n");
-		return -1;
+		ret = -1;
 	}
 
-	return 0;
+	module->unlock(module, pHandle);
+
+	return ret;
 }
 #endif
