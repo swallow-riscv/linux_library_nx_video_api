@@ -340,6 +340,9 @@ static int32_t GetSequenceHeader(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeq
 			return -1;
 
 	case V4L2_PIX_FMT_DIV3:
+#ifdef ANDROID
+		memcpy(pbyDst, pbySrc, pSeqIn->seqSize);
+#else
 		if (pSeqIn->seqSize == 0)
 		{
 			if ((pSeqIn->width > 0) && (pSeqIn->height > 0))
@@ -365,9 +368,14 @@ static int32_t GetSequenceHeader(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeq
 			iSize += 4;
 			memcpy(pbyDst, pbyDst, pSeqIn->seqSize);
 		}
+#endif
 		break;
 
 	case V4L2_PIX_FMT_WMV9:
+#if ANDROID
+		memcpy(pbyDst, pbySrc, pSeqIn->seqSize);
+		break;
+#else
 		if ((pSeqIn->seqSize > 0) && (pSeqIn->width > 0) && (pSeqIn->height > 0))
 		{
 #ifdef RCV_V2
@@ -395,9 +403,14 @@ static int32_t GetSequenceHeader(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeq
 		}
 		else
 			return -1;
+#endif
 
 	case V4L2_PIX_FMT_RV8:
 	case V4L2_PIX_FMT_RV9:
+#if ANDROID
+		memcpy(pbyDst, pbySrc, pSeqIn->seqSize);
+		break;
+#else
 		if ((pSeqIn->seqSize > 0) && (pSeqIn->width > 0) && (pSeqIn->height > 0))
 		{
 			iSize += 26;
@@ -425,8 +438,13 @@ static int32_t GetSequenceHeader(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeq
 		}
 		else
 			return -1;
+#endif
 
 	case V4L2_PIX_FMT_VP8:
+#ifdef ANDROID
+		memcpy(pbyDst, pbySrc, pSeqIn->seqSize);
+		break;
+#else
 		if ((pSeqIn->seqSize > 0) && (pSeqIn->width > 0) && (pSeqIn->height > 0))
 		{
 			PUT_LE32(pbyDst, MKTAG('D', 'K', 'I', 'F'));		/* signature 'DKIF' */
@@ -450,6 +468,7 @@ static int32_t GetSequenceHeader(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeq
 		}
 		else
 			return -1;
+#endif
 
 	case V4L2_PIX_FMT_XVID:
 	case V4L2_PIX_FMT_DIVX:
@@ -513,6 +532,9 @@ static int32_t GetFrameStream(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, int
 		break;
 
 	case V4L2_PIX_FMT_WMV9:
+#ifdef ANDROID
+		memcpy(pbyDst, pbySrc, iSize);
+#else
 		PUT_LE32(pbyDst, iSize | 0);							/* Key Frame = 0x80000000 */
 		iSize += 4;
 
@@ -522,10 +544,14 @@ static int32_t GetFrameStream(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, int
 #endif
 
 		memcpy(pbyDst, pbySrc, pDecIn->strmSize);
+#endif //if android
 		break;
 
 	case V4L2_PIX_FMT_RV8:
 	case V4L2_PIX_FMT_RV9:
+#ifdef ANDROID
+		memcpy(pbyDst, pbySrc, iSize);
+#else
 		{
 			int32_t cSlice, nSlice;
 			int32_t i, val, offset;
@@ -554,15 +580,20 @@ static int32_t GetFrameStream(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, int
 			memcpy(pbyDst, pbySrc + (1 + (cSlice * 8)), nSlice);
 			iSize = 20 + (cSlice * 8) + nSlice;
 		}
+#endif
 		break;
 
 	case V4L2_PIX_FMT_DIV3:
 	case V4L2_PIX_FMT_VP8:
+#ifdef ANDROID
+		memcpy(pbyDst, pbySrc, iSize);
+#else
 		PUT_LE32(pbyDst, iSize);
 		PUT_LE32(pbyDst, 0);
 		PUT_LE32(pbyDst, 0);
 		memcpy(pbyDst, pbySrc, iSize);
 		iSize += 12;
+#endif
 		break;
 
 	case V4L2_PIX_FMT_XVID:
