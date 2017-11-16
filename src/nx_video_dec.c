@@ -311,7 +311,11 @@ static int32_t Mp4DecParseFrameHeader(NX_V4L2DEC_HANDLE hDec, uint8_t *pbyStream
 		vld_flush_bits(&stStrm, 1 + hDec->vopTimeBits + 1);		/* marker_bits, vop_time_increment, marker_bits */
 
 		if (vld_get_bits(&stStrm, 1) == 0)						/* vop_coded */
-			iSize = 0;
+		{
+			// delete (hcjun 2017.11.16)
+			// When one frame is divided into several, an error occurs and it is removed.
+//			iSize = 0;
+		}
 	}
 
 	return iSize;
