@@ -238,10 +238,12 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 	switch (format)
 	{
 	case V4L2_PIX_FMT_YUV420:
-	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_YUV420M:
+	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_YVU420M:
+	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV12M:
+	case V4L2_PIX_FMT_NV21:
 	case V4L2_PIX_FMT_NV21M:
 		cStride = luStride/2;
 		cVStride = ALIGN(height/2, 16);
@@ -249,7 +251,9 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 
 	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUV422M:
+	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV16M:
+	case V4L2_PIX_FMT_NV61:
 	case V4L2_PIX_FMT_NV61M:
 		cStride = luStride/2;
 		cVStride = luVStride;
@@ -257,7 +261,9 @@ NX_VID_MEMORY_INFO * NX_AllocateVideoMemory( int width, int height, int32_t plan
 
 	case V4L2_PIX_FMT_YUV444:
 	case V4L2_PIX_FMT_YUV444M:
+	case V4L2_PIX_FMT_NV24:
 	case V4L2_PIX_FMT_NV24M:
+	case V4L2_PIX_FMT_NV42:
 	case V4L2_PIX_FMT_NV42M:
 		cStride = luStride;
 		cVStride = luVStride;
