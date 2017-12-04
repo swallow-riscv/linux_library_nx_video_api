@@ -110,6 +110,7 @@ typedef struct tNX_V4L2ENC_PARA {
 	uint32_t imgFormat;				/* Fourcc of Input Image */
 	uint32_t imgBufferNum;			/* Number of Input Image Buffer */
 	uint32_t imgPlaneNum;			/* Number of Input Image Plane */
+	NX_VID_MEMORY_INFO*	pImage;		/* Frame Buffer of Input Image */
 
 	/* for JPEG Specific Parameter */
 	int32_t rotAngle;

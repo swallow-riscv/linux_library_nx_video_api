@@ -234,6 +234,11 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 		fmt.fmt.pix_mp.height = inHeight;
 		fmt.fmt.pix_mp.num_planes = pEncPara->imgPlaneNum;
 
+		for (i=0 ; i<(int32_t)pEncPara->imgPlaneNum ; i++) {
+			fmt.fmt.pix_mp.plane_fmt[i].sizeimage    = pEncPara->pImage->size[i];
+			fmt.fmt.pix_mp.plane_fmt[i].bytesperline = pEncPara->pImage->stride[i];
+		}
+
 		if (ioctl(hEnc->fd, VIDIOC_S_FMT, &fmt) != 0)
 		{
 			printf("Failed to s_fmt : YUV \n");
