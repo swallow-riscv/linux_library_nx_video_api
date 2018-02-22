@@ -1160,8 +1160,20 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 
 	hDec->frameCnt++;
 
-	if (pDecOut->dispIdx == -1)
+	// add hcjun(2018_02_22)
+	if (hDec->iInterlace)
+	{
+		// In case of interlace dispIdx is -1,
+		// it is not an error.
+		if (pDecOut->dispIdx == -1)
+		{
+			return 0;
+		}
+	}
+	else if (pDecOut->dispIdx == -1)
+	{
 		return -1;
+	}
 
 	return 0;
 }
