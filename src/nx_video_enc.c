@@ -399,7 +399,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 		/* Allocate Output Buffer */
 		for (i=0 ; i<bufferCount ; i++)
 		{
-			hEnc->hBitStream[i] = NX_AllocateMemory(inWidth * inHeight * 3 / 2, 4096);			
+			hEnc->hBitStream[i] = NX_AllocateMemory(inWidth * inHeight * 3 / 2, 4096);
 			if (hEnc->hBitStream[i] == NULL)
 			{
 				printf("Failed to allocate stream buffer(%d, %d)\n", i, inWidth * inHeight * 3 / 4);

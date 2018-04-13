@@ -922,7 +922,7 @@ int32_t NX_V4l2DecInit(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqIn)
 	if (pSeqIn->pMemHandle == NULL)
 	{
 		hDec->useExternalFrameBuffer = false;
-		imgBuffCnt = hDec->numFrameBuffers + pSeqIn->numBuffers;
+		imgBuffCnt = pSeqIn->numBuffers;
 	}
 	else
 	{
