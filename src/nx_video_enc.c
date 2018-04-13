@@ -213,7 +213,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 
 		fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 		fmt.fmt.pix_mp.pixelformat = hEnc->codecType;
-		fmt.fmt.pix_mp.plane_fmt[0].sizeimage = inWidth * inHeight * 3 / 4;
+		fmt.fmt.pix_mp.plane_fmt[0].sizeimage = inWidth * inHeight * 3/2;
 
 		if (ioctl(hEnc->fd, VIDIOC_S_FMT, &fmt) != 0)
 		{
@@ -399,7 +399,7 @@ int32_t NX_V4l2EncInit(NX_V4L2ENC_HANDLE hEnc, NX_V4L2ENC_PARA *pEncPara)
 		/* Allocate Output Buffer */
 		for (i=0 ; i<bufferCount ; i++)
 		{
-			hEnc->hBitStream[i] = NX_AllocateMemory(inWidth * inHeight * 3 / 4, 4096);
+			hEnc->hBitStream[i] = NX_AllocateMemory(inWidth * inHeight * 3 / 2, 4096);			
 			if (hEnc->hBitStream[i] == NULL)
 			{
 				printf("Failed to allocate stream buffer(%d, %d)\n", i, inWidth * inHeight * 3 / 4);
