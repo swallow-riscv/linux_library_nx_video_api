@@ -1,7 +1,8 @@
 AM_CFLAGS = \
 	$(WARN_CFLAGS)	\
 	-I./include		\
-	-I${includedir}
+	-I${includedir}	\
+	-I${includedir}/libdrm
 
 libnx_video_api_la_LTLIBRARIES = libnx_video_api.la
 libnx_video_api_ladir = ${libdir}

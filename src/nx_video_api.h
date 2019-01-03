@@ -203,10 +203,13 @@ typedef struct tNX_V4L2DEC_OUT {
 	int32_t dispIdx;				/* Display Index */
 
 	uint32_t usedByte;
+
 	int32_t picType[2];				/* Picture Type */
 	uint64_t timeStamp[2];			/* Time stamp */
 	int32_t interlace[2];
 	int32_t outFrmReliable_0_100[2];	/* Percentage of MB's are reliable ranging from 0[all damage] to 100 [all clear] */
+
+	uint32_t remainByte;
 } NX_V4L2DEC_OUT;
 
 

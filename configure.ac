@@ -10,19 +10,38 @@ AM_INIT_AUTOMAKE([1.10 foreign dist-bzip2])
 
 # Checks for programs.
 AC_PROG_CXX
+AC_PROG_AWK
 AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+AC_PROG_RANLIB
 
 # Checks for libraries.
+# FIXME: Replace `main' with a function in `-ldrm':
+AC_CHECK_LIB([drm], [main])
 
 # Checks for header files.
+AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h strings.h sys/ioctl.h unistd.h])
 
 # Initialize libtool
 LT_PREREQ([2.2])
 LT_INIT([disable-static])
 
 # Checks for typedefs, structures, and compiler characteristics.
+AC_CHECK_HEADER_STDBOOL
+AC_TYPE_INT32_T
+AC_CHECK_MEMBERS([struct stat.st_rdev])
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
+AC_TYPE_UINT8_T
 
 # Checks for library functions.
+AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
+AC_FUNC_MALLOC
+AC_FUNC_MMAP
+AC_CHECK_FUNCS([memset munmap strerror])
 
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_OUTPUT

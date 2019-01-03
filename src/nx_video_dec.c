@@ -29,7 +29,6 @@
 #include <nx_video_alloc.h>
 #include <nx_video_api.h>
 
-
 /*----------------------------------------------------------------------------*/
 #define NX_V4L2_DEC_NAME		"nx-vpu-dec"
 #define VIDEODEV_MINOR_MAX		63
@@ -58,11 +57,10 @@ struct NX_V4L2DEC_INFO {
 
 	int32_t frameCnt;
 
-	/* For MPEG4 */
-	int vopTimeBits;
+	int32_t iRemainStrmSize;
 
-	/* For VC1 */
-	int32_t iInterlace;
+	int vopTimeBits;		/* For MPEG4 */
+	int32_t iInterlace;		/* For VC1 */
 };
 
 
@@ -311,11 +309,7 @@ static int32_t Mp4DecParseFrameHeader(NX_V4L2DEC_HANDLE hDec, uint8_t *pbyStream
 		vld_flush_bits(&stStrm, 1 + hDec->vopTimeBits + 1);		/* marker_bits, vop_time_increment, marker_bits */
 
 		if (vld_get_bits(&stStrm, 1) == 0)						/* vop_coded */
-		{
-			// delete (hcjun 2017.11.16)
-			// When one frame is divided into several, an error occurs and it is removed.
-//			iSize = 0;
-		}
+			iSize = 0;
 	}
 
 	return iSize;
@@ -554,7 +548,7 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		return -1;
 	}
 
-	hDec->seqDataSize = (pSeqIn->seqSize < 1024) ? (pSeqIn->seqSize) : (1024);
+	hDec->seqDataSize = (pSeqIn->seqSize < 1024) ? pSeqIn->seqSize : sizeof(hDec->pSeqData);
 	memcpy(hDec->pSeqData, pSeqIn->seqBuf, hDec->seqDataSize);
 
 	/* Set Stream Formet */
@@ -577,7 +571,7 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 
 		if (ioctl(hDec->fd, VIDIOC_S_FMT, &fmt) != 0)
 		{
-			printf("Failed to ioctx : VIDIOC_S_FMT(Input Stream)\n");
+			printf("Failed to ioctl : VIDIOC_S_FMT(Input Stream)\n");
 			return -1;
 		}
 	}
@@ -666,6 +660,8 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 		buf.timestamp.tv_sec = pSeqIn->timeStamp/1000;
 		buf.timestamp.tv_usec = (pSeqIn->timeStamp % 1000) * 1000;
 
+		hDec->iRemainStrmSize += iSeqSize;
+
 		if (ioctl(hDec->fd, VIDIOC_QBUF, &buf) != 0)
 		{
 			printf("failed to ioctl: VIDIOC_QBUF(Header Stream)\n");
@@ -697,6 +693,7 @@ int32_t NX_V4l2DecParseVideoCfg(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_SEQ_IN *pSeqI
 			pSeqOut->interlace = FIELD_INTERLACED;
 
 		hDec->iInterlace = pSeqOut->interlace;
+		hDec->iRemainStrmSize -= buf.bytesused;
 	}
 
 	/* Get Image Information */
@@ -869,13 +866,21 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 	int32_t iStrmSize;
 	int32_t frameType;
 
+	uint32_t iDecodedUsed = 0, iDisplayUsed = 0;
+
 	if (NULL == hDec)
 	{
 		printf("Fail, Invalid Handle.\n");
 		return -1;
 	}
 
+	memset( pDecOut, 0x00, sizeof(NX_V4L2DEC_OUT) );
+	pDecOut->decIdx    = -1;
+	pDecOut->dispIdx   = -1;
+
 	iStrmSize = GetFrameStream(hDec, pDecIn, &idx);
+
+	hDec->iRemainStrmSize += iStrmSize;
 
 	/* Queue Input Buffer */
 	memset(&buf, 0, sizeof(buf));
@@ -920,7 +925,7 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 		}
 
 		pDecOut->decIdx = buf.index;
-		pDecOut->usedByte = buf.bytesused;
+		iDecodedUsed = buf.bytesused;
 		pDecOut->outFrmReliable_0_100[DECODED_FRAME] = buf.reserved;
 		pDecOut->timeStamp[DECODED_FRAME] = ((uint64_t)buf.timestamp.tv_sec) * 1000 + buf.timestamp.tv_usec / 1000;
 		frameType = buf.flags;
@@ -965,8 +970,9 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 	if (pDecOut->dispIdx >= 0)
 	{
 		pDecOut->hImg = *hDec->hImage[buf.index];
-		pDecOut->timeStamp[DISPLAY_FRAME] = ((uint64_t)buf.timestamp.tv_sec) * 1000 + buf.timestamp.tv_usec / 1000;
 		pDecOut->outFrmReliable_0_100[DISPLAY_FRAME] = buf.reserved;
+		pDecOut->timeStamp[DISPLAY_FRAME] = ((uint64_t)buf.timestamp.tv_sec) * 1000 + buf.timestamp.tv_usec / 1000;
+		iDisplayUsed = buf.bytesused;
 		frameType = buf.flags;
 
 		if (frameType & V4L2_BUF_FLAG_KEYFRAME)
@@ -986,22 +992,15 @@ int32_t NX_V4l2DecDecodeFrame(NX_V4L2DEC_HANDLE hDec, NX_V4L2DEC_IN *pDecIn, NX_
 			pDecOut->interlace[DISPLAY_FRAME] = BOTTOM_FIELD_FIRST;
 	}
 
+	pDecOut->usedByte = iDecodedUsed ? iDecodedUsed : iDisplayUsed;
+
+	hDec->iRemainStrmSize -= pDecOut->usedByte;
+	pDecOut->remainByte = hDec->iRemainStrmSize;
+
 	hDec->frameCnt++;
 
-	// add hcjun(2018_02_22)
-	if (hDec->iInterlace)
-	{
-		// In case of interlace dispIdx is -1,
-		// it is not an error.
-		if (pDecOut->dispIdx == -1)
-		{
-			return 0;
-		}
-	}
-	else if (pDecOut->dispIdx == -1)
-	{
+	if (pDecOut->dispIdx == -1)
 		return -1;
-	}
 
 	return 0;
 }
@@ -1145,6 +1144,7 @@ int32_t NX_V4l2DecFlush(NX_V4L2DEC_HANDLE hDec)
 		}
 	}
 
+	hDec->iRemainStrmSize = 0;
 	return 0;
 }
 
