@@ -19,9 +19,11 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include <linux/ion.h>
 #include <linux/videodev2.h>
-#include <linux/videodev2_nxp_media.h>
+
+
+#include "include/linux/videodev2_nxp_media.h"
+#include "include/linux/ion/ion.h"
 
 #include <nx_video_alloc.h>
 

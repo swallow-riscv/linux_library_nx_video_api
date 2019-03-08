@@ -14,6 +14,7 @@ extern "C" {
 #include <stdint.h>
 
 #define	NX_MAX_PLANES	4
+#define USE_ION_ALLOCATOR
 
 //
 //	Nexell Private Memory Type
